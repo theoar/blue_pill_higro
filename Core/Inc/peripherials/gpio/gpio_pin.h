@@ -32,6 +32,7 @@ namespace gpio
       void set();
       void reset();
       void state(bool state);
+      bool state();
 
       static void init(GpioTypes::GpioNr gpioNo, uint32_t pin, uint32_t mode, uint32_t outputType, uint32_t pull, uint32_t speed);
       static void setMode(GpioTypes::GpioNr gpioNo, uint32_t pinNo, uint32_t mode);
@@ -42,6 +43,7 @@ namespace gpio
       static void set(GpioTypes::GpioNr gpioNo, uint32_t pinNo);
       static void reset(GpioTypes::GpioNr gpioNo, uint32_t pinNo);
       static void state(GpioTypes::GpioNr gpioNo, uint32_t pinNo, bool state);
+      static bool state(GpioTypes::GpioNr gpioNo, uint32_t pinNo);
   };
 }
 

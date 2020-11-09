@@ -92,6 +92,11 @@ namespace gpio
       this->reset();
   }
 
+  bool Pin::state()
+  {
+    return LL_GPIO_IsInputPinSet(Gpio::getGpio(this->gpioNo), this->pinNo)!=0;
+  }
+
   void Pin::toggle(GpioTypes::GpioNr gpioNo, uint32_t pinNo)
   {
     LL_GPIO_TogglePin(Gpio::getGpio(gpioNo), pinNo);
@@ -114,5 +119,11 @@ namespace gpio
     else
       Pin::reset(gpioNo, pinNo);
   }
+
+  bool Pin::state(GpioTypes::GpioNr gpioNo, uint32_t pinNo)
+  {
+    return LL_GPIO_IsInputPinSet(Gpio::getGpio(gpioNo), pinNo)!=0;
+  }
+
 }
 

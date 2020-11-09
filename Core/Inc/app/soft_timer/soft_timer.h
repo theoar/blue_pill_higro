@@ -14,11 +14,16 @@
 class SoftTimer
 {
   private:
-    uint64_t startTime;
-    uint64_t endTime;
-    uint64_t ms;
+    uint64_t startTime = 0;
+    uint64_t endTime = 0;
+    uint64_t ms = 0;
     bool hold = true;
   public:
+    SoftTimer() = default;
+    SoftTimer(uint64_t ms)
+    {
+      this->start(ms);
+    }
     void start(uint64_t ms)
     {
       this->hold = false;
@@ -47,9 +52,25 @@ class SoftTimer
 	return this->endTime >= GlobalTimer::get ();
     }
 
+    bool checkAndRestart()
+    {
+      if(this->check())
+      {
+	this->restart();
+	return true;
+      }
+      else
+	return false;
+    }
+
     void restart()
     {
       this->start (this->ms);
+    }
+
+    bool isStopped()
+    {
+      return this->hold;
     }
 };
 
