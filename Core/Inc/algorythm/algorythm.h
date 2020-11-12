@@ -12,18 +12,20 @@
 
 #include "app/daemon_ctrl/daemon_interface.h"
 #include "app/daemon_ctrl/daemon_ctrl.h"
+#include "app/binary_regulator/binary_regulator.h"
 
 #include "app/soft_timer/soft_timer.h"
 
 using namespace board;
 using namespace daemon_ctrl;
+using namespace binary_regulator;
 
 namespace algorytm
 {
   class Algorythm : public IDaemon
   {
     public:
-      Algorythm() = default;
+      Algorythm();
       Algorythm(Board *board, Daemon *daemon);
 
       void setBoard(Board *board);
@@ -37,20 +39,20 @@ namespace algorytm
     private:
       enum class MachineSt
       {
-	Initializing,
 	WorkingWithRegulator,
 	ConstantOn,
 	ConstantOff,
 	Blockade,
 	TimedControlled, //TO DO
-      } machineSt = MachineSt::Initializing;
+      } machineSt = MachineSt::ConstantOff;
 
       enum class DisplaySt
       {
-	CurrentHumidity,
-	CurrentTemperature,
+	MeasuredParameter,
 	SettledParameter,
-      } displaySt = DisplaySt::CurrentHumidity;
+      } displaySt = DisplaySt::MeasuredParameter;
+
+      bool nowTemperature = true;
 
       SoftTimer maxWorkTimer;
       SoftTimer blockadeTimer;
@@ -58,9 +60,11 @@ namespace algorytm
 
       bool wasEnabled = false;
 
-      uint8_t lastRotaryPos = 0;
-      uint8_t rotartyPosToDisplay = 0;
-      bool rotaryToDisplay = 0;
+      uint8_t lastRotaryPos = Algorythm::dsConstantOffPos;
+      uint8_t rotartyPosToDisplay = Algorythm::dsConstantOffPos;
+      bool rotaryToDisplay = false;
+
+      BinaryRegulator<uint32_t> regulator;
 
       void handleDisplay();
       void handleAlgol();
@@ -68,7 +72,7 @@ namespace algorytm
       static constexpr uint32_t maxWorkTime = 60*60*1000;
       static constexpr uint32_t blockadeTime = 10*60*1000;
 
-      static constexpr uint32_t displayTime = 2000;
+      static constexpr uint32_t displayTime = 3000;
 
       static constexpr uint8_t dsConstantOnPos = 1;
       static constexpr uint8_t dsConstantOffPos = 0;

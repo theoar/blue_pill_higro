@@ -35,17 +35,8 @@ int main(void)
   Board board(&deamon);
   Algorythm algol(&board, &deamon);
 
-  SoftTimer displayTimer(2000);
-  SoftTimer blinkTimer(1000);
-
   while(1)
   {
-    if(blinkTimer.checkAndRestart())
-    {
-      //board.getLed().toggle();
-      blinkTimer.restart();
-    }
-
     deamon.handler();
   }
 

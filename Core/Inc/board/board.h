@@ -64,8 +64,6 @@ namespace board
       Dht11 dht11;
       Higrometer higrometer;
 
-      BinaryRegulator<uint32_t> regulator;
-
     public:
       Board() = default;
       Board(Daemon *daemon);
@@ -75,9 +73,9 @@ namespace board
       RotaryDipSwitch<16> & getRotaryDipSwitch();
       Dht11 & getDhtDriver();
       Higrometer & getHigrometer();
-      BinaryRegulator<uint32_t> &getRegulator();
       Pin & getLed();
       Pin & getRelayPin();
+      void setRelayState(bool enabled);
 
   };
 }

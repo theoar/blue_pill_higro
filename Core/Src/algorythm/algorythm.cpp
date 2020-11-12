@@ -9,10 +9,20 @@
 
 namespace algorytm
 {
-  Algorythm::Algorythm(Board *board, Daemon *daemon)
+  Algorythm::Algorythm(Board *board, Daemon *daemon) :  Algorythm()
   {
     this->setBoard(board);
     daemon->addAndStartProcess(this);
+  }
+
+  Algorythm::Algorythm()
+  {
+    this->regulator.setType(RegulatorType::Cooler);
+    this->regulator.setDesiredValue(60);
+    this->regulator.setHisteresis(5);
+
+    this->maxWorkTimer.stop();
+    this->blockadeTimer.stop();
   }
 
   void Algorythm::setBoard(Board *board)
@@ -51,84 +61,52 @@ namespace algorytm
 
   void Algorythm::handleDisplay()
   {
+    if(this->rotaryToDisplay)
+    {
+      this->displaySt = DisplaySt::SettledParameter;
+      this->rotaryToDisplay = false;
+      this->displayTimer.start(this->displayTime);
+    }
+
     switch (this->displaySt)
     {
-      case DisplaySt::CurrentHumidity:
+      case DisplaySt::MeasuredParameter:
       {
-	if(this->rotaryToDisplay)
-	{
-	  this->displaySt = DisplaySt::SettledParameter;
-	  this->rotaryToDisplay = false;
-	  this->displayTimer.start(this->displayTime);
-	}
-	else
-	{
-	  if(this->displayTimer.checkAndRestart())
-	    this->displaySt = DisplaySt::CurrentTemperature;
+	if(this->displayTimer.checkAndRestart())
+	  this->nowTemperature = !this->nowTemperature;
 
-	  if(this->board->getHigrometer().isConnected())
-	  {
-	    uint32_t humidity = this->board->getHigrometer().getHumidity();
-	    this->board->getDisplay().display(humidity / 100);
-	  }
-	  else
-	  {
-	    this->board->getDisplay().display("ee");
-	  }
-	}
-      }
-      break;
-
-      case DisplaySt::CurrentTemperature:
-      {
-	if(this->rotaryToDisplay)
+	if(this->board->getHigrometer().isConnected())
 	{
-	  this->displaySt = DisplaySt::SettledParameter;
-	  this->rotaryToDisplay = false;
-	  this->displayTimer.start(this->displayTime);
-	}
-	else
-	{
-	  if(this->displayTimer.checkAndRestart())
-	    this->displaySt = DisplaySt::CurrentHumidity;
-
-	  if(this->board->getHigrometer().isConnected())
-	  {
-	    uint32_t temperature = this->board->getHigrometer().getTemperature();
+	  uint32_t humidity = this->board->getHigrometer().getHumidity();
+	  uint32_t temperature = this->board->getHigrometer().getTemperature();
+	  if(this->nowTemperature)
 	    this->board->getDisplay().display(temperature / 100 + (((temperature % 100) >= 50) ? 1 : 0));
-	  }
 	  else
-	  {
-	    this->board->getDisplay().display("ee");
-	  }
+	    this->board->getDisplay().display(humidity / 100);
+	}
+	else
+	{
+	  this->board->getDisplay().display("ee");
 	}
       }
       break;
 
       case DisplaySt::SettledParameter:
       {
-	if(this->rotaryToDisplay)
-	{
-	  this->displayTimer.restart();
-	  this->rotaryToDisplay = false;
-	}
+	if(this->displayTimer.checkAndRestart())
+	  this->displaySt = DisplaySt::MeasuredParameter;
 	else
 	{
-	  if(this->displayTimer.checkAndRestart())
-	    this->displaySt = DisplaySt::CurrentTemperature;
-	  else
+	  if(this->isConstantOffDipSwitch(this->rotartyPosToDisplay))
+	    this->board->getDisplay().display("oF");
+
+	  if(this->isConstantOnDipSwitch(this->rotartyPosToDisplay))
+	    this->board->getDisplay().display("on");
+
+	  if(this->isHumiditySettingsDipSwitch(this->rotartyPosToDisplay))
 	  {
-	    if(this->isConstantOffDipSwitch(this->rotartyPosToDisplay))
-	      this->board->getDisplay().display("oF");
-
-	    if(this->isConstantOnDipSwitch(this->rotartyPosToDisplay))
-	      this->board->getDisplay().display("on");
-
-	    if(this->isHumiditySettingsDipSwitch(this->rotartyPosToDisplay))
-	    {
-	      uint32_t humiditySettled = this->dipSwitchPosToHumidity(this->rotartyPosToDisplay);
-	      this->board->getDisplay().display(humiditySettled);
-	    }
+	    uint32_t humiditySettled = this->dipSwitchPosToHumidity(this->rotartyPosToDisplay);
+	    this->board->getDisplay().display(humiditySettled);
 	  }
 	}
       }
@@ -139,73 +117,46 @@ namespace algorytm
 
   void Algorythm::handleAlgol()
   {
+    uint8_t pos = this->board->getRotaryDipSwitch().stableNumber();
+
+    if(this->lastRotaryPos != pos)
+    {
+      this->lastRotaryPos = pos;
+      this->rotaryToDisplay = true;
+      this->rotartyPosToDisplay = pos;
+    }
+
+    if(this->isConstantOnDipSwitch(pos))
+      this->machineSt = MachineSt::ConstantOn;
+
+    if(this->isConstantOffDipSwitch(pos))
+      this->machineSt = MachineSt::ConstantOff;
+
+    if(this->isHumiditySettingsDipSwitch(pos))
+    {
+      uint32_t settings = this->dipSwitchPosToHumidity(pos);
+
+      this->regulator.setDesiredValue(settings);
+
+      if(this->machineSt != MachineSt::Blockade)
+	this->machineSt = MachineSt::WorkingWithRegulator;
+    }
+
     switch (this->machineSt)
     {
-      case MachineSt::Initializing:
-      {
-	this->board->getRelayPin().reset();
-	this->board->getDisplay().display("FF");
-
-	this->maxWorkTimer.stop();
-	this->blockadeTimer.stop();
-
-	uint8_t pos = this->board->getRotaryDipSwitch().number();
-
-	if(this->isConstantOnDipSwitch(pos))
-	  this->machineSt = MachineSt::ConstantOn;
-
-	if(this->isConstantOffDipSwitch(pos))
-	  this->machineSt = MachineSt::ConstantOff;
-
-	if(this->isHumiditySettingsDipSwitch(pos))
-	{
-	  uint32_t settings = this->dipSwitchPosToHumidity(pos);
-
-	  this->board->getRegulator().setDesiredValue(settings);
-	  this->machineSt = MachineSt::WorkingWithRegulator;
-	}
-
-	if(this->machineSt!= MachineSt::Initializing)
-	{
-	  this->rotaryToDisplay = true;
-	  this->rotartyPosToDisplay = pos;
-	}
-      }
-      break;
       case MachineSt::WorkingWithRegulator:
       {
-	uint8_t pos = this->board->getRotaryDipSwitch().stableNumber();
-
-	if(this->isConstantOnDipSwitch(pos))
-	  this->machineSt = MachineSt::ConstantOn;
-
-	if(this->isConstantOffDipSwitch(pos))
-	  this->machineSt = MachineSt::ConstantOff;
-
-	if(this->isHumiditySettingsDipSwitch(pos))
-	{
-	  uint32_t settings = this->dipSwitchPosToHumidity(pos);
-	  this->board->getRegulator().setDesiredValue(settings);
-	}
-
-	if(this->lastRotaryPos != pos)
-	{
-	  this->lastRotaryPos = pos;
-	  this->rotaryToDisplay = true;
-	  this->rotartyPosToDisplay = pos;
-	}
-
 	if(!this->board->getHigrometer().isConnected())
 	{
-	  this->board->getRelayPin().reset();
+	  this->board->setRelayState(false);
 	  this->maxWorkTimer.stop();
 	}
 	else
 	{
 	  uint32_t humidity = this->board->getHigrometer().getHumidity();
-	  this->board->getRegulator().setCurrentValue(humidity);
+	  this->regulator.setCurrentValue(humidity/100);
 
-	  if(this->board->getRegulator().getState())
+	  if(this->regulator.getState())
 	  {
 	    if(this->maxWorkTimer.isStopped())
 	      this->maxWorkTimer.start(Algorythm::maxWorkTime);
@@ -215,108 +166,34 @@ namespace algorytm
 	      this->machineSt = MachineSt::Blockade;
 	      this->blockadeTimer.start(this->blockadeTime);
 	    }
+
+	    this->board->setRelayState(true);
 	  }
 	  else
 	  {
 	    this->maxWorkTimer.stop();
+	    this->board->setRelayState(false);
 	  }
 	}
       }
       break;
 
       case MachineSt::ConstantOn:
-      {
-	uint8_t pos = this->board->getRotaryDipSwitch().stableNumber();
-
-	board->getRelayPin().set();
-
-	if(this->isConstantOffDipSwitch(pos))
-	  this->machineSt = MachineSt::ConstantOff;
-
-	if(this->isHumiditySettingsDipSwitch(pos))
-	{
-	  uint32_t settings = this->dipSwitchPosToHumidity(pos);
-
-	  this->board->getRegulator().setDesiredValue(settings);
-	  this->machineSt = MachineSt::WorkingWithRegulator;
-	}
-
-	if(this->lastRotaryPos != pos)
-	{
-	  this->lastRotaryPos = pos;
-	  this->rotaryToDisplay = true;
-	  this->rotartyPosToDisplay = pos;
-	}
-      }
+	this->board->setRelayState(true);
       break;
 
       case MachineSt::ConstantOff:
-      {
-	uint8_t pos = this->board->getRotaryDipSwitch().stableNumber();
-
-	board->getRelayPin().reset();
-
-	if(this->isConstantOnDipSwitch(pos))
-	  this->machineSt = MachineSt::ConstantOn;
-
-	if(this->isHumiditySettingsDipSwitch(pos))
-	{
-	  uint32_t settings = this->dipSwitchPosToHumidity(pos);
-
-	  this->board->getRegulator().setDesiredValue(settings);
-	  this->machineSt = MachineSt::WorkingWithRegulator;
-	}
-
-	if(this->lastRotaryPos != pos)
-	{
-	  this->lastRotaryPos = pos;
-	  this->rotaryToDisplay = true;
-	  this->rotartyPosToDisplay = pos;
-	}
-      }
+	this->board->setRelayState(false);
       break;
 
       case MachineSt::Blockade:
       {
-	this->board->getRelayPin().reset();
-
-	uint8_t pos = this->board->getRotaryDipSwitch().stableNumber();
+	this->board->setRelayState(false);
 
 	if(this->blockadeTimer.check())
 	{
 	  this->blockadeTimer.stop();
 	  this->machineSt = MachineSt::WorkingWithRegulator;
-	}
-	else
-	{
-	  if(this->isConstantOnDipSwitch(pos))
-	  {
-	    this->machineSt = MachineSt::ConstantOn;
-	    this->blockadeTimer.stop();
-	  }
-
-	  if(this->isConstantOffDipSwitch(pos))
-	  {
-	    this->machineSt = MachineSt::ConstantOff;
-	    this->blockadeTimer.stop();
-	  }
-
-	  if(this->isHumiditySettingsDipSwitch(pos))
-	  {
-	    uint32_t settings = this->dipSwitchPosToHumidity(pos);
-
-	    this->board->getRegulator().setDesiredValue(settings);
-	    this->machineSt = MachineSt::WorkingWithRegulator;
-
-	    this->blockadeTimer.stop();
-	  }
-
-	  if(this->lastRotaryPos != pos)
-	  {
-	    this->lastRotaryPos = pos;
-	    this->rotaryToDisplay = true;
-	    this->rotartyPosToDisplay = pos;
-	  }
 	}
       }
       break;

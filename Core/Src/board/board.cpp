@@ -32,7 +32,6 @@ namespace board
     this->initRotaryDipSwitch(daemon);
     this->initDhtDriver(daemon);
     this->initHigrometer(daemon);
-    this->initRegulator();
     this->initBlinkLed();
     this->initRelay();
   }
@@ -88,7 +87,7 @@ namespace board
     this->hex1.configure(GpioTypes::GpioNr::C, LL_GPIO_PIN_15, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
     this->hex2.configure(GpioTypes::GpioNr::C, LL_GPIO_PIN_14, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
     this->hex4.configure(GpioTypes::GpioNr::A, LL_GPIO_PIN_0, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
-    this->hex8.configure(GpioTypes::GpioNr::C, LL_GPIO_PIN_13, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
+    this->hex8.configure(GpioTypes::GpioNr::A, LL_GPIO_PIN_2, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
 
     rds.pinAt(0, &hex1);
     rds.pinAt(1, &hex2);
@@ -110,13 +109,6 @@ namespace board
     daemon->addAndStartProcess(&this->higrometer);
   }
 
-  void Board::initRegulator()
-  {
-    this->regulator.setType(RegulatorType::Cooler);
-    this->regulator.setDesiredValue(60);
-    this->regulator.setHisteresis(5);
-  }
-
   void Board::initBlinkLed()
   {
     this->led.configure(GpioTypes::GpioNr::C, LL_GPIO_PIN_7 ,LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
@@ -124,7 +116,7 @@ namespace board
 
   void Board::initRelay()
   {
-    this->relayPin.configure(GpioTypes::GpioNr::C, LL_GPIO_PIN_7, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
+    this->relayPin.configure(GpioTypes::GpioNr::A, LL_GPIO_PIN_1, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
   }
 
   BasicDigitDisplay<2> & Board::getDisplay()
@@ -147,11 +139,6 @@ namespace board
     return this->higrometer;
   }
 
-  BinaryRegulator<uint32_t> & Board::getRegulator()
-  {
-    return this->regulator;
-  }
-
   Pin & Board::getLed()
   {
     return this->led;
@@ -160,6 +147,14 @@ namespace board
   Pin & Board::getRelayPin()
   {
     return this->relayPin;
+  }
+
+  void Board::setRelayState(bool enabled)
+  {
+    if(enabled)
+      this->relayPin.reset();
+    else
+      this->relayPin.set();
   }
 
 }
