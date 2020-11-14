@@ -31,17 +31,24 @@ namespace segment_display
 
       void configure(DigitDisplayDefs::Segments segment, uint32_t pin, GpioTypes::GpioNr gpio)
       {
-	if(this->commonAnode)
-	{
-	  Pin pinObj { gpio, pin, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz };
-	  this->configure(segment, pinObj);
+	//if(this->commonAnode)
+	//{
+	//  Pin pinObj { gpio, pin, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_DOWN, LL_GPIO_MODE_OUTPUT_2MHz };
+	//  this->configure(segment, pinObj);
+	//  pinObj.reset();
 
-	}
-	else
-	{
-	  Pin pinObj { gpio, pin, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz };
+	//}
+	//else
+	//{
+	  Pin pinObj { gpio, pin, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_DOWN, LL_GPIO_MODE_OUTPUT_2MHz };
 	  this->configure(segment, pinObj);
-	}
+	  pinObj.reset();
+	//}
+
+	if(this->commonAnode)
+	  pinObj.reset();
+	else
+	  pinObj.set();
       }
 
       virtual void clear()

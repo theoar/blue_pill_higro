@@ -23,6 +23,8 @@ namespace algorytm
 
     this->maxWorkTimer.stop();
     this->blockadeTimer.stop();
+
+    this->displayTimer.start(this->displayTime);
   }
 
   void Algorythm::setBoard(Board *board)
@@ -65,7 +67,7 @@ namespace algorytm
     {
       this->displaySt = DisplaySt::SettledParameter;
       this->rotaryToDisplay = false;
-      this->displayTimer.start(this->displayTime);
+      this->displayTimer.restart();
     }
 
     switch (this->displaySt)
@@ -79,6 +81,7 @@ namespace algorytm
 	{
 	  uint32_t humidity = this->board->getHigrometer().getHumidity();
 	  uint32_t temperature = this->board->getHigrometer().getTemperature();
+
 	  if(this->nowTemperature)
 	    this->board->getDisplay().display(temperature / 100 + (((temperature % 100) >= 50) ? 1 : 0));
 	  else
@@ -165,6 +168,7 @@ namespace algorytm
 	    {
 	      this->machineSt = MachineSt::Blockade;
 	      this->blockadeTimer.start(this->blockadeTime);
+	      this->maxWorkTimer.stop();
 	    }
 
 	    this->board->setRelayState(true);
