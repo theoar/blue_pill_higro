@@ -9,18 +9,20 @@
 #define INC_BOARD_BOARD_H_
 
 #include "app/segemnt_display/digit.h"
-#include "app/segemnt_display/digit_display.h"
+#include "app/segemnt_display/multiplex_digit_display.h"
 
 #include "app/rotary_dip_switch/rotary_dip_switch.h"
 #include "app/higrometer/higrometer.h"
 
 #include "app/binary_regulator/binary_regulator.h"
 
+#include "app/button/button_keyboard.h"
+
+#include "app/daemon_ctrl/daemon_ctrl.h"
+
 #include "devices/dht11/dht11.h"
 
 #include "peripherials/gpio/gpio_pin.h"
-
-#include "app/daemon_ctrl/daemon_ctrl.h"
 
 
 using namespace segment_display;
@@ -29,7 +31,9 @@ using namespace devices;
 using namespace higrometer;
 using namespace daemon_ctrl;
 using namespace gpio;
+using namespace button;
 using namespace binary_regulator;
+
 
 namespace board
 {
@@ -38,24 +42,30 @@ namespace board
     private:
       void initRcc();
       void initGpio();
-      void initDisplay();
+      void initBackupDomain();
+      void initDisplay(Daemon *daemon);
       void initGlobalTimer();
-      void initRotaryDipSwitch(Daemon *daemon);
+      void initKeyboard(Daemon *daemon);
       void initDhtDriver(Daemon *daemon);
       void initHigrometer(Daemon *daemon);
       void initRegulator();
       void initBlinkLed();
       void initRelay();
 
-      BasicDigit firstDigit;
-      BasicDigit secondDigit;
-      BasicDigitDisplay<2> display;
+      MultiplexScrollDigitDisplay<4> display;
+      Pin digit1Power;
+      Pin digit2Power;
+      Pin digit3Power;
+      Pin digit4Power;
+      BasicDigit digit;
 
-      RotaryDipSwitch<16> rds;
-      Pin hex1;
-      Pin hex2;
-      Pin hex4;
-      Pin hex8;
+      ButtonKeyboardSimple<3> keyboard;
+      Button enter;
+      Button up;
+      Button down;
+      Pin enterPin;
+      Pin upPin;
+      Pin downPin;
 
       Pin led;
 
@@ -69,14 +79,13 @@ namespace board
       Board(Daemon *daemon);
       void init(Daemon *daemon);
 
-      BasicDigitDisplay<2> & getDisplay();
-      RotaryDipSwitch<16> & getRotaryDipSwitch();
+      MultiplexScrollDigitDisplay<4> & getDisplay();
       Dht11 & getDhtDriver();
       Higrometer & getHigrometer();
+      ButtonKeyboardSimple<3> &getKeyboard();
       Pin & getLed();
       Pin & getRelayPin();
       void setRelayState(bool enabled);
-
   };
 }
 

@@ -19,41 +19,42 @@ namespace segment_display
   class BasicDigit
   {
     protected:
-      Pin pinConfig[DigitDisplayDefs::segmentCount()];
+      Pin pinConfig[DigitDisplayDefs::segmentCountWithoutDot()];
+      Pin dotPin;
       bool commonAnode = true;
       bool dotConfigured = false;
 
     public:
       void configure(DigitDisplayDefs::Segments segment, Pin pin)
       {
-	this->pinConfig[DigitDisplayDefs::segmentIndex(segment)] = pin;
+	if(DigitDisplayDefs::Segments::DOTP==segment)
+	{
+	  this->dotPin = pin;
+	  this->dotConfigured = true;
+	}
+	else
+	  this->pinConfig[DigitDisplayDefs::segmentIndex(segment)] = pin;
       }
 
       void configure(DigitDisplayDefs::Segments segment, uint32_t pin, GpioTypes::GpioNr gpio)
       {
-	//if(this->commonAnode)
-	//{
-	//  Pin pinObj { gpio, pin, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_DOWN, LL_GPIO_MODE_OUTPUT_2MHz };
-	//  this->configure(segment, pinObj);
-	//  pinObj.reset();
-
-	//}
-	//else
-	//{
-	  Pin pinObj { gpio, pin, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_DOWN, LL_GPIO_MODE_OUTPUT_2MHz };
+	if(this->commonAnode)
+	{
+	  Pin pinObj { gpio, pin, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_DOWN, LL_GPIO_MODE_OUTPUT_2MHz };
 	  this->configure(segment, pinObj);
 	  pinObj.reset();
-	//}
-
-	if(this->commonAnode)
-	  pinObj.reset();
+	}
 	else
+	{
+	  Pin pinObj { gpio, pin, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_DOWN, LL_GPIO_MODE_OUTPUT_2MHz };
+	  this->configure(segment, pinObj);
 	  pinObj.set();
+	}
       }
 
       virtual void clear()
       {
-	for(uint8_t i = 0; i < DigitDisplayDefs::segmentCount(); ++i)
+	for(uint8_t i = 0; i < DigitDisplayDefs::segmentCountWithoutDot(); ++i)
 	{
 	  if(this->commonAnode)
 	    this->pinConfig[i].set();
@@ -64,9 +65,9 @@ namespace segment_display
 	if(this->dotConfigured)
 	{
 	  if(this->commonAnode)
-	    this->pinConfig[DigitDisplayDefs::segmentIndex(DigitDisplayDefs::Segments::DOTP)].set();
+	    this->dotPin.set();
 	  else
-	    this->pinConfig[DigitDisplayDefs::segmentIndex(DigitDisplayDefs::Segments::DOTP)].reset();
+	    this->dotPin.reset();
 	}
       }
 
@@ -77,7 +78,7 @@ namespace segment_display
 	if(this->commonAnode)
 	  mask = ~mask;
 
-	for(uint8_t i = 0; i < DigitDisplayDefs::segmentCount(); ++i)
+	for(uint8_t i = 0; i < DigitDisplayDefs::segmentCountWithoutDot(); ++i)
 	{
 	  if(mask & (1 << i))
 	    this->pinConfig[i].set();
@@ -93,7 +94,7 @@ namespace segment_display
 	if(this->commonAnode)
 	  mask = ~mask;
 
-	for(uint8_t i = 0; i < DigitDisplayDefs::segmentCount(); ++i)
+	for(uint8_t i = 0; i < DigitDisplayDefs::segmentCountWithoutDot(); ++i)
 	{
 	  if(mask & (1 << i))
 	    this->pinConfig[i].set();
@@ -102,27 +103,31 @@ namespace segment_display
 	}
       }
 
-      virtual void display(uint8_t digit, bool dot)
+      virtual void dot(bool dotState)
       {
-	this->display(digit);
-
 	if(this->dotConfigured)
 	{
-	  if(dot)
+	  if(dotState)
 	  {
 	    if(this->commonAnode)
-	      this->pinConfig[DigitDisplayDefs::segmentIndex(DigitDisplayDefs::Segments::DOTP)].reset();
+	      this->dotPin.reset();
 	    else
-	      this->pinConfig[DigitDisplayDefs::segmentIndex(DigitDisplayDefs::Segments::DOTP)].set();
+	      this->dotPin.set();
 	  }
 	  else
 	  {
 	    if(this->commonAnode)
-	      this->pinConfig[DigitDisplayDefs::segmentIndex(DigitDisplayDefs::Segments::DOTP)].set();
+	      this->dotPin.set();
 	    else
-	      this->pinConfig[DigitDisplayDefs::segmentIndex(DigitDisplayDefs::Segments::DOTP)].reset();
+	      this->dotPin.reset();
 	  }
 	}
+      }
+
+      virtual void display(uint8_t digit, bool dotState)
+      {
+	this->display(digit);
+	this->dot(dotState);
       }
 
       void setCommonAnode()

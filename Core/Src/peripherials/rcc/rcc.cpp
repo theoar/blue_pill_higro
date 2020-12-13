@@ -13,7 +13,7 @@ uint32_t Rcc::systemClock = 0;
 void Rcc::init(uint32_t coreClock)
 {
   LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_AFIO);
-  LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
+  SET_BIT(RCC->APB1ENR, RCC_APB1ENR_PWREN);
   Rcc::setSystemClockValue(coreClock);
 }
 

@@ -17,28 +17,35 @@
  ******************************************************************************
  */
 
+#include "board/board.h"
+#include "algorythm/algorythm.h"
+
 #include "app/soft_timer/soft_timer.h"
 #include "app/daemon_ctrl/daemon_ctrl.h"
 
-#include "board/board.h"
-#include "algorythm/algorythm.h"
+#include <stdio.h>
 
 using namespace timer;
 using namespace daemon_ctrl;
 using namespace board;
 using namespace algorytm;
 
+
 int main(void)
 {
   Daemon deamon;
-
   Board board(&deamon);
+  SoftTimer blinkTimer(1000);
   Algorythm algol(&board, &deamon);
 
   while(1)
   {
+    if(blinkTimer.checkAndRestart())
+      board.getLed().toggle();
+
     deamon.handler();
   }
 
+  return 0;
 }
 

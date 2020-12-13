@@ -211,5 +211,17 @@ namespace higrometer
     return this->humidity;
   }
 
+  uint32_t Higrometer::getTemperature(bool *result)
+  {
+    *result = this->isConnected();
+    return this->getTemperature();
+  }
+
+  uint32_t Higrometer::getHumidity(bool *result)
+  {
+    *result = this->isConnected();
+    return this->getHumidity();
+  }
+
 }
 

@@ -8,13 +8,16 @@
 #ifndef SRC_BOARD_BOARD_CPP_
 #define SRC_BOARD_BOARD_CPP_
 
-#include "../system_clock_config.h"
-
 #include "peripherials/rcc/rcc.h"
+#include "peripherials/rtc/rtc.h"
+#include "peripherials/bkp/bkp.h"
 
 #include "board/board.h"
+#include "system_clock_config.h"
 
 using namespace rcc;
+using namespace bkp;
+using namespace rtc;
 
 namespace board
 {
@@ -26,10 +29,11 @@ namespace board
   void Board::init(Daemon *daemon)
   {
     this->initRcc();
+    this->initBackupDomain();
     this->initGlobalTimer();
     this->initGpio();
-    this->initDisplay();
-    this->initRotaryDipSwitch(daemon);
+    this->initKeyboard(daemon);
+    this->initDisplay(daemon);
     this->initDhtDriver(daemon);
     this->initHigrometer(daemon);
     this->initBlinkLed();
@@ -42,6 +46,12 @@ namespace board
     Rcc::init(72000000);
   }
 
+  void Board::initBackupDomain()
+  {
+    Rtc::init();
+    BackupDomain::init();
+  }
+
   void Board::initGpio()
   {
     Gpio::init();
@@ -50,51 +60,57 @@ namespace board
     Gpio::init(GpioTypes::GpioNr::C);
   }
 
-  void Board::initDisplay()
+  void Board::initDisplay(Daemon *daemon)
   {
-    this->firstDigit.setCommonAnode();
-    this->firstDigit.configure(DigitDisplayDefs::Segments::A, LL_GPIO_PIN_8, GpioTypes::GpioNr::B);
-    this->firstDigit.configure(DigitDisplayDefs::Segments::B, LL_GPIO_PIN_9, GpioTypes::GpioNr::B);
-    this->firstDigit.configure(DigitDisplayDefs::Segments::F, LL_GPIO_PIN_7, GpioTypes::GpioNr::B);
-    this->firstDigit.configure(DigitDisplayDefs::Segments::G, LL_GPIO_PIN_5, GpioTypes::GpioNr::B);
-    this->firstDigit.configure(DigitDisplayDefs::Segments::C, LL_GPIO_PIN_4, GpioTypes::GpioNr::B);
-    this->firstDigit.configure(DigitDisplayDefs::Segments::D, LL_GPIO_PIN_3, GpioTypes::GpioNr::B);
-    this->firstDigit.configure(DigitDisplayDefs::Segments::E, LL_GPIO_PIN_15, GpioTypes::GpioNr::A);
-    this->firstDigit.clear();
+    this->digit.setCommonAnode();
+    this->digit.configure(DigitDisplayDefs::Segments::A, LL_GPIO_PIN_0, GpioTypes::GpioNr::A);
+    this->digit.configure(DigitDisplayDefs::Segments::B, LL_GPIO_PIN_1, GpioTypes::GpioNr::A);
+    this->digit.configure(DigitDisplayDefs::Segments::C, LL_GPIO_PIN_2, GpioTypes::GpioNr::A);
+    this->digit.configure(DigitDisplayDefs::Segments::D, LL_GPIO_PIN_3, GpioTypes::GpioNr::A);
+    this->digit.configure(DigitDisplayDefs::Segments::E, LL_GPIO_PIN_4, GpioTypes::GpioNr::A);
+    this->digit.configure(DigitDisplayDefs::Segments::F, LL_GPIO_PIN_5, GpioTypes::GpioNr::A);
+    this->digit.configure(DigitDisplayDefs::Segments::G, LL_GPIO_PIN_6, GpioTypes::GpioNr::A);
+    this->digit.configure(DigitDisplayDefs::Segments::DOTP, LL_GPIO_PIN_7, GpioTypes::GpioNr::A);
 
+    this->digit1Power.configure(GpioTypes::GpioNr::B, LL_GPIO_PIN_5, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_SPEED_FREQ_HIGH);
+    this->digit2Power.configure(GpioTypes::GpioNr::B, LL_GPIO_PIN_7, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_SPEED_FREQ_HIGH);
+    this->digit3Power.configure(GpioTypes::GpioNr::B, LL_GPIO_PIN_8, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_SPEED_FREQ_HIGH);
+    this->digit4Power.configure(GpioTypes::GpioNr::B, LL_GPIO_PIN_9, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_SPEED_FREQ_HIGH);
 
-    this->secondDigit.setCommonAnode();
-    this->secondDigit.configure(DigitDisplayDefs::Segments::G, LL_GPIO_PIN_12, GpioTypes::GpioNr::A);
-    this->secondDigit.configure(DigitDisplayDefs::Segments::B, LL_GPIO_PIN_11, GpioTypes::GpioNr::A);
-    this->secondDigit.configure(DigitDisplayDefs::Segments::C, LL_GPIO_PIN_10, GpioTypes::GpioNr::A);
-    this->secondDigit.configure(DigitDisplayDefs::Segments::D, LL_GPIO_PIN_8, GpioTypes::GpioNr::A);
-    this->secondDigit.configure(DigitDisplayDefs::Segments::A, LL_GPIO_PIN_15, GpioTypes::GpioNr::B);
-    this->secondDigit.configure(DigitDisplayDefs::Segments::E, LL_GPIO_PIN_14, GpioTypes::GpioNr::B);
-    this->secondDigit.configure(DigitDisplayDefs::Segments::F, LL_GPIO_PIN_13, GpioTypes::GpioNr::B);
-    this->secondDigit.clear();
+    this->display.setPowerPinAt(3, &this->digit1Power);
+    this->display.setPowerPinAt(2, &this->digit2Power);
+    this->display.setPowerPinAt(1, &this->digit3Power);
+    this->display.setPowerPinAt(0, &this->digit4Power);
 
-    this->display.setDigitAt(0, &this->firstDigit);
-    this->display.setDigitAt(1, &this->secondDigit);
+    this->display.setDigitConfig(&this->digit);
+
+    daemon->addAndStartProcess(&this->display);
+  }
+
+  void Board::initKeyboard(Daemon *daemon)
+  {
+    this->enterPin = Pin(GpioTypes::GpioNr::B, LL_GPIO_PIN_11, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_UP, LL_GPIO_SPEED_FREQ_HIGH);
+    this->upPin = Pin(GpioTypes::GpioNr::B, LL_GPIO_PIN_10, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_UP, LL_GPIO_SPEED_FREQ_HIGH);
+    this->downPin = Pin(GpioTypes::GpioNr::B, LL_GPIO_PIN_1, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_UP, LL_GPIO_SPEED_FREQ_HIGH);
+
+    this->enter.configure(&this->enterPin, false);
+    this->up.configure(&this->upPin, false);
+    this->down.configure(&this->downPin, false);
+
+    this->keyboard.addButton(&this->enter, ButtonKeyboardDefs::ENTER);
+    this->keyboard.addButton(&this->up, ButtonKeyboardDefs::UP);
+    this->keyboard.addButton(&this->down, ButtonKeyboardDefs::DOWN);
+
+    daemon->addAndStartProcess(&this->enter);
+    daemon->addAndStartProcess(&this->up);
+    daemon->addAndStartProcess(&this->down);
+
+    daemon->addAndStartProcess(&this->keyboard);
   }
 
   void Board::initGlobalTimer()
   {
     TimerEvents::getSysTickEvent()->setEvent(&GlobalTimer::increment);
-  }
-
-  void Board::initRotaryDipSwitch(Daemon *daemon)
-  {
-    this->hex1.configure(GpioTypes::GpioNr::C, LL_GPIO_PIN_15, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
-    this->hex2.configure(GpioTypes::GpioNr::C, LL_GPIO_PIN_14, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
-    this->hex4.configure(GpioTypes::GpioNr::A, LL_GPIO_PIN_0, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
-    this->hex8.configure(GpioTypes::GpioNr::A, LL_GPIO_PIN_2, LL_GPIO_MODE_INPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
-
-    rds.pinAt(0, &hex1);
-    rds.pinAt(1, &hex2);
-    rds.pinAt(2, &hex4);
-    rds.pinAt(3, &hex8);
-
-    daemon->addAndStartProcess(&this->rds);
   }
 
   void Board::initDhtDriver(Daemon *daemon)
@@ -111,22 +127,22 @@ namespace board
 
   void Board::initBlinkLed()
   {
-    this->led.configure(GpioTypes::GpioNr::C, LL_GPIO_PIN_7 ,LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
+    this->led.configure(GpioTypes::GpioNr::C, LL_GPIO_PIN_13 ,LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_PUSHPULL, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
   }
 
   void Board::initRelay()
   {
-    this->relayPin.configure(GpioTypes::GpioNr::A, LL_GPIO_PIN_1, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
+    this->relayPin.configure(GpioTypes::GpioNr::B, LL_GPIO_PIN_15, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
   }
 
-  BasicDigitDisplay<2> & Board::getDisplay()
+  MultiplexScrollDigitDisplay<4> & Board::getDisplay()
   {
     return this->display;
   }
 
-  RotaryDipSwitch<16> & Board::getRotaryDipSwitch()
+  ButtonKeyboardSimple<3>& Board::getKeyboard()
   {
-    return this->rds;
+    return this->keyboard;
   }
 
   Dht11 & Board::getDhtDriver()

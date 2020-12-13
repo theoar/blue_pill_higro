@@ -136,10 +136,8 @@ bool Daemon::stopProcess(Process *process)
 
 void Daemon::handler(void)
 {
-  for(list<Process*>::iterator it = processes.begin(); it != processes.end(); ++it)
-  {
-    (*it)->handler();
-  }
+  for(auto x : this->processes)
+    x->handler();
 }
 
 Daemon::~Daemon()

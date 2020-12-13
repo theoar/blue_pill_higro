@@ -13,12 +13,18 @@
 #include "app/daemon_ctrl/daemon_interface.h"
 #include "app/daemon_ctrl/daemon_ctrl.h"
 #include "app/binary_regulator/binary_regulator.h"
-
+#include "app/menu/menu_item_interface.h"
+#include "app/menu/simple_menu.h"
 #include "app/soft_timer/soft_timer.h"
+#include "app/bck_item/bck_item.h"
+
+#include "peripherials/bkp/bkp.h"
 
 using namespace board;
 using namespace daemon_ctrl;
 using namespace binary_regulator;
+using namespace bck_item;
+using namespace menu;
 
 namespace algorytm
 {
@@ -29,60 +35,40 @@ namespace algorytm
       Algorythm(Board *board, Daemon *daemon);
 
       void setBoard(Board *board);
+      void initRegulator();
+      void initMenu(Daemon *daemon);
 
       void handler() override;
-
-      bool isHumiditySettingsDipSwitch(uint8_t pos);
-      bool isConstantOffDipSwitch(uint8_t pos);
-      bool isConstantOnDipSwitch(uint8_t pos);
-      uint32_t dipSwitchPosToHumidity(uint8_t pos);
     private:
       enum class MachineSt
       {
 	WorkingWithRegulator,
 	ConstantOn,
 	ConstantOff,
-	Blockade,
-	TimedControlled, //TO DO
-      } machineSt = MachineSt::ConstantOff;
-
-      enum class DisplaySt
-      {
-	MeasuredParameter,
-	SettledParameter,
-      } displaySt = DisplaySt::MeasuredParameter;
-
-      bool nowTemperature = true;
+	Blockade
+      } machineSt = MachineSt::WorkingWithRegulator;
 
       SoftTimer maxWorkTimer;
       SoftTimer blockadeTimer;
-      SoftTimer displayTimer;
 
-      bool wasEnabled = false;
+      BackupItem humidityHysteresis = BackupItemBuilder::next(1, 15, 5);
+      BackupItem humidityTreshold = BackupItemBuilder::next(31, 89, 50);
 
-      uint8_t lastRotaryPos = Algorythm::dsConstantOffPos;
-      uint8_t rotartyPosToDisplay = Algorythm::dsConstantOffPos;
-      bool rotaryToDisplay = false;
+      MenuItemTime timeItem;
+      MenuItemFormattedRead<Higrometer, uint32_t> humidityReadItem;
+      MenuItemFormattedRead<Higrometer, uint32_t> temperatureReadItem;
+      MenuItemFormattedRead<BinaryRegulator<uint32_t>, bool> relayReadItem;
+      MenuItemGenericReadWrite<BackupItem, uint16_t> humidityHysteresisReadWriteItem;
+      MenuItemGenericReadWrite<BackupItem, uint16_t> humidityTresholdReadWriteItem;;
+
+      SimpleMenu<6> menu;
 
       BinaryRegulator<uint32_t> regulator;
 
-      void handleDisplay();
       void handleAlgol();
 
       static constexpr uint32_t maxWorkTime = 60*60*1000;
       static constexpr uint32_t blockadeTime = 10*60*1000;
-
-      static constexpr uint32_t displayTime = 3000;
-
-      static constexpr uint8_t dsConstantOnPos = 1;
-      static constexpr uint8_t dsConstantOffPos = 0;
-
-      static constexpr uint8_t lowestHumidityPos = 2;
-      static constexpr uint8_t higgestHumidityPos = 0xf;
-
-      static constexpr uint32_t lowestHumidity = 30;
-      static constexpr uint32_t higgestHumidity = 90;
-
 
       Board *board = nullptr;
   };

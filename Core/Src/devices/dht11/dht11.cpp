@@ -28,6 +28,7 @@ namespace devices
   {
     this->setPin();
     LL_GPIO_SetPinMode(this->hwGpio, this->trPin, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(this->hwGpio, this->trPin, LL_GPIO_OUTPUT_PUSHPULL);
   }
 
   void Dht11::setPin()
@@ -158,11 +159,12 @@ namespace devices
 
   void Dht11::pushStamp(uint32_t stamp)
   {
-    this->timeStamps[this->stampIndex] = stamp;
-    this->stampIndex++;
+    if(this->stampIndex<STAMP_DESIRED_COUNT)
+    {
+      this->timeStamps[this->stampIndex] = stamp;
+      this->stampIndex++;
+    }
 
-//    if(this->stampIndex>=STAMPS_SIZE)
-//      this->machineSt=MachineSt::
   }
 
   void Dht11::initTimer()
@@ -400,6 +402,7 @@ namespace devices
 
 	this->stopTimer();
 	this->setGpioAsOutput();
+	this->setPin();
 
 	if(this->noResponseCnt >= this->noResponseLimit)
 	  this->timer.start(this->powerWatiTms);

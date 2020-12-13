@@ -13,18 +13,75 @@ namespace algorytm
   {
     this->setBoard(board);
     daemon->addAndStartProcess(this);
+
+    this->initRegulator();
+    this->initMenu(daemon);
   }
 
   Algorythm::Algorythm()
   {
-    this->regulator.setType(RegulatorType::Cooler);
-    this->regulator.setDesiredValue(60);
-    this->regulator.setHisteresis(5);
-
     this->maxWorkTimer.stop();
     this->blockadeTimer.stop();
+  }
 
-    this->displayTimer.start(this->displayTime);
+  void Algorythm::initRegulator()
+  {
+    this->regulator.setType(RegulatorType::Cooler);
+    this->regulator.setDesiredValue(this->humidityTreshold.get());
+    this->regulator.setHisteresis(this->humidityHysteresis.get());
+  }
+
+  void Algorythm::initMenu(Daemon *daemon)
+  {
+   this->humidityHysteresisReadWriteItem.setProvider(&this->humidityHysteresis, &BackupItem::get, &BackupItem::set);
+   this->humidityTresholdReadWriteItem.setProvider(&this->humidityTreshold, &BackupItem::get, &BackupItem::set);
+
+   this->humidityHysteresisReadWriteItem.setDataFormat("%02hu");
+   this->humidityHysteresisReadWriteItem.setPrefix("Hi.");
+   this->humidityHysteresisReadWriteItem.setRange(this->humidityHysteresis.min(), this->humidityHysteresis.max());
+   this->humidityHysteresisReadWriteItem.setStep(1);
+
+   this->humidityTresholdReadWriteItem.setDataFormat("%02hu");
+   this->humidityTresholdReadWriteItem.setPrefix("On.");
+   this->humidityTresholdReadWriteItem.setRange(this->humidityTreshold.min(), this->humidityTreshold.max());
+   this->humidityTresholdReadWriteItem.setStep(1);
+
+   this->humidityReadItem.setProviderFeedback(&this->board->getHigrometer(), &Higrometer::getHumidity);
+   this->humidityReadItem.setPrefix("Hu.");
+   this->humidityReadItem.setSprintfFunction([](char *buff, uint32_t val) -> void
+    {
+      sprintf(buff, "%2lu", val/100);
+    });
+   this->humidityReadItem.setError("Hu Error");
+
+   this->temperatureReadItem.setProviderFeedback(&this->board->getHigrometer(), &Higrometer::getTemperature);
+   this->temperatureReadItem.setSprintfFunction([](char *buff, uint32_t val) -> void
+    {
+      sprintf(buff, "%2lu.%1lu", val/100, (val/10) % 10);
+    });
+
+   this->temperatureReadItem.setSufix("C");
+   this->temperatureReadItem.setError("Hu Error");
+
+
+   this->relayReadItem.setProvider(&this->regulator, &BinaryRegulator<uint32_t>::getState);
+   this->relayReadItem.setPrefix("P.");
+   this->relayReadItem.setSprintfFunction([](char *buff, bool val) -> void
+    {
+      sprintf(buff, "%s", val ? " On" : "OFF");
+    });
+
+   this->menu.addItemAt(&this->timeItem, 0);
+   this->menu.addItemAt(&this->humidityReadItem, 1);
+   this->menu.addItemAt(&this->temperatureReadItem, 2);
+   this->menu.addItemAt(&this->relayReadItem, 3);
+   this->menu.addItemAt(&this->humidityHysteresisReadWriteItem, 4);
+   this->menu.addItemAt(&this->humidityTresholdReadWriteItem, 5);
+
+   this->menu.setKeyboard(&this->board->getKeyboard());
+   this->menu.setDisplay(&this->board->getDisplay());
+
+   daemon->addAndStartProcess(&this->menu);
   }
 
   void Algorythm::setBoard(Board *board)
@@ -32,118 +89,10 @@ namespace algorytm
     this->board = board;
   }
 
-  bool Algorythm::isHumiditySettingsDipSwitch(uint8_t pos)
-  {
-    return pos>=lowestHumidityPos && pos<=higgestHumidityPos;
-  }
-
-  bool Algorythm::isConstantOffDipSwitch(uint8_t pos)
-  {
-    return pos==Algorythm::dsConstantOffPos;
-  }
-
-  bool Algorythm::isConstantOnDipSwitch(uint8_t pos)
-  {
-    return pos==Algorythm::dsConstantOnPos;
-  }
-
-  uint32_t Algorythm::dipSwitchPosToHumidity(uint8_t pos)
-  {
-    uint32_t humiditySettings = lowestHumidityPos;
-    if(pos>=lowestHumidityPos && pos<=higgestHumidityPos)
-    {
-      uint8_t optionsCnt = higgestHumidityPos-lowestHumidityPos+1;
-      uint8_t selected = pos - lowestHumidityPos;
-      humiditySettings = ((higgestHumidity-lowestHumidity)*selected)/optionsCnt + lowestHumidity;
-    }
-
-    return humiditySettings;
-
-  }
-
-  void Algorythm::handleDisplay()
-  {
-    if(this->rotaryToDisplay)
-    {
-      this->displaySt = DisplaySt::SettledParameter;
-      this->rotaryToDisplay = false;
-      this->displayTimer.restart();
-    }
-
-    switch (this->displaySt)
-    {
-      case DisplaySt::MeasuredParameter:
-      {
-	if(this->displayTimer.checkAndRestart())
-	  this->nowTemperature = !this->nowTemperature;
-
-	if(this->board->getHigrometer().isConnected())
-	{
-	  uint32_t humidity = this->board->getHigrometer().getHumidity();
-	  uint32_t temperature = this->board->getHigrometer().getTemperature();
-
-	  if(this->nowTemperature)
-	    this->board->getDisplay().display(temperature / 100 + (((temperature % 100) >= 50) ? 1 : 0));
-	  else
-	    this->board->getDisplay().display(humidity / 100);
-	}
-	else
-	{
-	  this->board->getDisplay().display("ee");
-	}
-      }
-      break;
-
-      case DisplaySt::SettledParameter:
-      {
-	if(this->displayTimer.checkAndRestart())
-	  this->displaySt = DisplaySt::MeasuredParameter;
-	else
-	{
-	  if(this->isConstantOffDipSwitch(this->rotartyPosToDisplay))
-	    this->board->getDisplay().display("oF");
-
-	  if(this->isConstantOnDipSwitch(this->rotartyPosToDisplay))
-	    this->board->getDisplay().display("on");
-
-	  if(this->isHumiditySettingsDipSwitch(this->rotartyPosToDisplay))
-	  {
-	    uint32_t humiditySettled = this->dipSwitchPosToHumidity(this->rotartyPosToDisplay);
-	    this->board->getDisplay().display(humiditySettled);
-	  }
-	}
-      }
-
-      default:;
-    }
-  }
-
   void Algorythm::handleAlgol()
   {
-    uint8_t pos = this->board->getRotaryDipSwitch().stableNumber();
-
-    if(this->lastRotaryPos != pos)
-    {
-      this->lastRotaryPos = pos;
-      this->rotaryToDisplay = true;
-      this->rotartyPosToDisplay = pos;
-    }
-
-    if(this->isConstantOnDipSwitch(pos))
-      this->machineSt = MachineSt::ConstantOn;
-
-    if(this->isConstantOffDipSwitch(pos))
-      this->machineSt = MachineSt::ConstantOff;
-
-    if(this->isHumiditySettingsDipSwitch(pos))
-    {
-      uint32_t settings = this->dipSwitchPosToHumidity(pos);
-
-      this->regulator.setDesiredValue(settings);
-
-      if(this->machineSt != MachineSt::Blockade)
-	this->machineSt = MachineSt::WorkingWithRegulator;
-    }
+    this->regulator.setDesiredValue(this->humidityTreshold.get());
+    this->regulator.setHisteresis(this->humidityHysteresis.get());
 
     switch (this->machineSt)
     {
@@ -208,7 +157,6 @@ namespace algorytm
 
   void Algorythm::handler()
   {
-    this->handleDisplay();
     this->handleAlgol();
   }
 }

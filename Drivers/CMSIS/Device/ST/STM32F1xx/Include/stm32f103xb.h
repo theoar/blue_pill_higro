@@ -9,7 +9,7 @@
   *          This file contains:
   *           - Data structures and the address mapping for all peripherals
   *           - Peripheral's registers declarations and bits definition
-  *           - Macros to access peripheral’s registers hardware
+  *           - Macros to access peripheralï¿½s registers hardware
   *  
   ******************************************************************************
   * @attention
@@ -180,20 +180,20 @@ typedef struct
 
 typedef struct
 {
-  uint32_t  RESERVED0;
-  __IO uint32_t DR1;
-  __IO uint32_t DR2;
-  __IO uint32_t DR3;
-  __IO uint32_t DR4;
-  __IO uint32_t DR5;
-  __IO uint32_t DR6;
-  __IO uint32_t DR7;
-  __IO uint32_t DR8;
-  __IO uint32_t DR9;
-  __IO uint32_t DR10;
-  __IO uint32_t RTCCR;
-  __IO uint32_t CR;
-  __IO uint32_t CSR;
+    uint32_t  RESERVED0;
+    __IO uint32_t DR1;
+    __IO uint32_t DR2;
+    __IO uint32_t DR3;
+    __IO uint32_t DR4;
+    __IO uint32_t DR5;
+    __IO uint32_t DR6;
+    __IO uint32_t DR7;
+    __IO uint32_t DR8;
+    __IO uint32_t DR9;
+    __IO uint32_t DR10;
+    __IO uint32_t RTCCR;
+    __IO uint32_t CR;
+    __IO uint32_t CSR;
 } BKP_TypeDef;
   
 /** 

@@ -17,7 +17,7 @@ namespace segment_display
     public:
       enum class Segments : uint8_t
       {
-	A = 0, B, C, D, E, F, G, DOTP, COUNT = DOTP
+	A = 0, B, C, D, E, F, G, DOTP, COUNT_WITHOUT_DOT = DOTP, COUNT_WITH_DOT
       };
     private:
       static constexpr uint8_t getBits(Segments segment)
@@ -61,12 +61,25 @@ namespace segment_display
 	  case 'e': return getBits(Segments::A, Segments::B, Segments::D, Segments::E, Segments::F, Segments::G);
 	  case 'C': return getBits(Segments::A, Segments::D, Segments::E, Segments::F);
 	  case 'E': return getBits(Segments::A, Segments::D, Segments::E, Segments::F, Segments::G);
-	  case 'P': return getBits(Segments::A, Segments::B, Segments::E, Segments::F);
+	  case 'P': return getBits(Segments::A, Segments::B, Segments::E, Segments::F, Segments::G);
 	  case 'F': return getBits(Segments::A, Segments::E, Segments::F, Segments::G);
 	  case 'd': return getBits(Segments::B, Segments::C, Segments::D, Segments::E, Segments::G);
 
+	  case 'h': return getBits(Segments::C, Segments::E, Segments::F, Segments::G);
+	  case 'H': return getBits(Segments::B, Segments::C, Segments::E, Segments::F, Segments::G);
+
+	  case 'r': return getBits(Segments::E, Segments::G);
+
+	  case 'u': return getBits(Segments::C, Segments::D, Segments::E);
+	  case 'U': return getBits(Segments::B, Segments::C, Segments::D, Segments::E, Segments::F);
+
+	  case 'i': return getBits(Segments::E);
+	  case 'I': return getBits(Segments::E, Segments::F);
+
 	  case 'n': return getBits(Segments::C, Segments::E, Segments::G);
 	  case 'o': return getBits(Segments::C, Segments::D, Segments::E, Segments::G);
+
+	  case 'O': return getBits(Segments::A, Segments::B, Segments::C, Segments::D, Segments::E, Segments::F);
 
 	  case '1': return digit2SegmentMask(1);
 	  case '2': return digit2SegmentMask(2);
@@ -88,7 +101,8 @@ namespace segment_display
 	return static_cast<uint8_t>(segment);
       }
 
-      static constexpr uint8_t segmentCount() { return static_cast<uint8_t>(Segments::COUNT); }
+      static constexpr uint8_t segmentCountWithoutDot() { return static_cast<uint8_t>(Segments::COUNT_WITHOUT_DOT); }
+      static constexpr uint8_t segmentCountWithDot() { return static_cast<uint8_t>(Segments::COUNT_WITH_DOT); }
 
   };
 }

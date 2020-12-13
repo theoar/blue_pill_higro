@@ -58,6 +58,9 @@ namespace higrometer
       uint32_t getTemperature();
       uint32_t getHumidity();
 
+      uint32_t getTemperature(bool *result);
+      uint32_t getHumidity(bool *result);
+
       //IDaemon----------------------------------------------------------
       void handler();
       //-----------------------------------------------------------------

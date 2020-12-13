@@ -5,10 +5,8 @@
  *      Author: theoar
  */
 
-#ifndef SRC_SYSTEM_CLOCK_CONFIG_H_
-#define SRC_SYSTEM_CLOCK_CONFIG_H_
-
 #include "proc.h"
+#include "system_clock_config.h"
 
 void systemClockConfig(void)
 {
@@ -23,6 +21,7 @@ void systemClockConfig(void)
   {
 
   }
+
   LL_RCC_PLL_ConfigDomain_SYS (LL_RCC_PLLSOURCE_HSE_DIV_1, LL_RCC_PLL_MUL_9);
   LL_RCC_PLL_Enable ();
 
@@ -45,6 +44,3 @@ void systemClockConfig(void)
   LL_SetSystemCoreClock (72000000);
 }
 
-
-
-#endif /* SRC_SYSTEM_CLOCK_CONFIG_H_ */

@@ -69,7 +69,7 @@ namespace devices
 
       static constexpr uint32_t FRAME_START_BITS = 1;
       static constexpr uint32_t STAMP_DESIRED_COUNT = FRAME_SIZE*8+FRAME_START_BITS+1;
-      uint32_t timeStamps[STAMP_DESIRED_COUNT];
+      uint16_t timeStamps[STAMP_DESIRED_COUNT];
       uint8_t stampIndex = 0;
 
       bool resultReady = false;

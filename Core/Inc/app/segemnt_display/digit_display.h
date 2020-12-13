@@ -10,13 +10,15 @@
 
 #include <inttypes.h>
 
+#include "display_interface.h"
+
 #include "digit.h"
 #include "digit_display_defs.h"
 
 namespace segment_display
 {
   template<int count>
-    class BasicDigitDisplay
+    class BasicDigitDisplay : public SegmentDisplayInterface
     {
       private:
 	BasicDigit *digits[count];
@@ -43,14 +45,14 @@ namespace segment_display
 	  }
 	}
 
-	void clear()
+	void clear() override
 	{
 	  for(uint8_t x = 0; x < count; ++x)
 	    if(this->digits[x] != nullptr)
 	      this->digits[x]->clear();
 	}
 
-	void display(uint32_t number)
+	void display(uint32_t number) override
 	{
 	  for(uint32_t x = 0; x < count; ++x)
 	  {
@@ -75,7 +77,7 @@ namespace segment_display
 	  }
 	}
 
-	void display(const char *str)
+	void display(const char *str) override
 	{
 	  for(uint32_t x = count; (x > 0) && (*str!=0); --x)
 	  {

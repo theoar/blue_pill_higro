@@ -11,98 +11,96 @@
 namespace binary_regulator
 {
 
-enum class RegulatorType
+  enum class RegulatorType
+  {
+    Heater, Cooler
+  };
+  template<typename T>
+    class BinaryRegulator
+    {
+
+      private:
+	T desiredValue = 0;
+	T histeresis = 0;
+
+	T currentValue = 0;
+
+	bool state = false;
+
+	RegulatorType type = RegulatorType::Cooler;
+
+      public:
+
+	void setType(RegulatorType type)
 	{
-		Heater,
-		Cooler
-	};
-	template<typename T>
-	class BinaryRegulator
+	  this->type = type;
+	}
+
+	void setDesiredValue(T value)
 	{
+	  this->desiredValue = value;
+	}
 
-	private:
-		T desiredValue = 0;
-		T histeresis = 0;
+	T getDesiredValue()
+	{
+	  return this->desiredValue;
+	}
 
-		T currentValue = 0;
+	void setHisteresis(T value)
+	{
+	  this->histeresis = value;
+	}
 
-		bool state = false;
+	T getHisteresis()
+	{
+	  return this->desiredValue;
+	}
 
-		RegulatorType type = RegulatorType::Cooler;
+	void setCurrentValue(T value)
+	{
+	  this->currentValue = value;
+	}
 
-	public:
+	bool getState()
+	{
+	  switch (this->type)
+	  {
+	    case RegulatorType::Heater:
+	    {
+	      if(this->state)
+	      {
+		if(this->currentValue >= this->desiredValue + this->histeresis)
+		  this->state = false;
+	      }
+	      else
+	      {
+		if(this->currentValue <= this->desiredValue)
+		  this->state = true;
+	      }
+	    }
+	    break;
 
-		void setType(RegulatorType type )
-		{
-			this->type = type;
-		}
+	    case RegulatorType::Cooler:
+	    {
+	      if(this->state)
+	      {
+		if(this->currentValue <= this->desiredValue - this->histeresis)
+		  this->state = false;
+	      }
+	      else
+	      {
+		if(this->currentValue >= this->desiredValue)
+		  this->state = true;
+	      }
+	    }
+	    break;
+	    default:
+	      ;
+	  }
 
-		void setDesiredValue(T value)
-		{
-			this->desiredValue = value;
-		}
-
-		T getDesiredValue()
-		{
-			return this->desiredValue;
-		}
-
-		void setHisteresis(T value)
-		{
-			this->histeresis = value;
-		}
-
-		T getHisteresis()
-		{
-			return this->desiredValue;
-		}
-
-		void setCurrentValue(T value)
-		{
-			this->currentValue = value;
-		}
-
-		bool getState()
-		{
-			switch(this->type)
-			{
-			case RegulatorType::Heater:
-			{
-				if (this->state)
-				{
-					if (this->currentValue >= this->desiredValue+this->histeresis)
-						this->state = false;
-				}
-				else
-				{
-					if (this->currentValue <= this->desiredValue)
-						this->state = true;
-				}
-			}
-			break;
-
-			case RegulatorType::Cooler:
-			{
-				if(this->state)
-				{
-					if(this->currentValue<=this->desiredValue-this->histeresis)
-						this->state = false;
-				}
-				else
-				{
-					if(this->currentValue>=this->desiredValue)
-						this->state = true;
-				}
-			}
-			break;
-			default:;
-			}
-
-			return this->state;
-		}
-	};
+	  return this->state;
+	}
+    };
 }
-
-
 
 #endif /* SRC_BINARY_REGULATOR_BINARY_REGULATOR_H_ */

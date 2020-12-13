@@ -217,15 +217,12 @@ __STATIC_INLINE uint32_t LL_GetFlashSize(void)
   */
 __STATIC_INLINE void LL_InitTick(uint32_t HCLKFrequency, uint32_t Ticks)
 {
-	uint32_t ticks = HCLKFrequency / Ticks;
-
-  SysTick->LOAD  = (uint32_t)(ticks - 1UL);                         /* set reload register */
-  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
-  SysTick->VAL   = 0UL;                                             /* Load the SysTick Counter Value */
+  /* Configure the SysTick to have interrupt in 1ms time base */
+  SysTick->LOAD  = (uint32_t)((HCLKFrequency / Ticks) - 1UL);  /* set reload register */
+  SysTick->VAL   = 0UL;                                       /* Load the SysTick Counter Value */
   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
-                   SysTick_CTRL_TICKINT_Msk   |
-                   SysTick_CTRL_ENABLE_Msk;                         /* Enable SysTick IRQ and SysTick Timer */
-
+                   SysTick_CTRL_ENABLE_Msk |                  /* Enable the Systick Timer */
+		   SysTick_CTRL_TICKINT_Msk;
 }
 
 void        LL_Init1msTick(uint32_t HCLKFrequency);
