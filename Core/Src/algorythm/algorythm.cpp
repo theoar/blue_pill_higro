@@ -48,35 +48,24 @@ namespace algorytm
 
    this->humidityReadItem.setProviderFeedback(&this->board->getHigrometer(), &Higrometer::getHumidity);
    this->humidityReadItem.setPrefix("Hu.");
-   this->humidityReadItem.setSprintfFunction([](char *buff, uint32_t val) -> void
-    {
-      sprintf(buff, "%2lu", val/100);
-    });
+   this->humidityReadItem.setSprintfFunction([](char *buff, uint32_t val) -> void {sprintf(buff, "%2lu", val/100);});
    this->humidityReadItem.setError("Hu Error");
 
    this->temperatureReadItem.setProviderFeedback(&this->board->getHigrometer(), &Higrometer::getTemperature);
-   this->temperatureReadItem.setSprintfFunction([](char *buff, uint32_t val) -> void
-    {
-      sprintf(buff, "%2lu.%1lu", val/100, (val/10) % 10);
-    });
-
+   this->temperatureReadItem.setSprintfFunction([](char *buff, uint32_t val) -> void{  sprintf(buff, "%2lu.%1lu", val/100, (val/10) % 10); });
    this->temperatureReadItem.setSufix("C");
    this->temperatureReadItem.setError("Hu Error");
 
-
    this->relayReadItem.setProvider(&this->regulator, &BinaryRegulator<uint32_t>::getState);
    this->relayReadItem.setPrefix("P.");
-   this->relayReadItem.setSprintfFunction([](char *buff, bool val) -> void
-    {
-      sprintf(buff, "%s", val ? " On" : "OFF");
-    });
+   this->relayReadItem.setSprintfFunction([](char *buff, bool val) -> void{ sprintf(buff, "%s", val ? " On" : "OFF"); });
 
-   this->menu.addItemAt(&this->timeItem, 0);
-   this->menu.addItemAt(&this->humidityReadItem, 1);
-   this->menu.addItemAt(&this->temperatureReadItem, 2);
-   this->menu.addItemAt(&this->relayReadItem, 3);
-   this->menu.addItemAt(&this->humidityHysteresisReadWriteItem, 4);
-   this->menu.addItemAt(&this->humidityTresholdReadWriteItem, 5);
+   this->menu.addItemAt(&this->timeItem, 0, false);
+   this->menu.addItemAt(&this->humidityReadItem, 1, true);
+   this->menu.addItemAt(&this->temperatureReadItem, 2, true);
+   this->menu.addItemAt(&this->relayReadItem, 3, false);
+   this->menu.addItemAt(&this->humidityHysteresisReadWriteItem, 4, false);
+   this->menu.addItemAt(&this->humidityTresholdReadWriteItem, 5, false);
 
    this->menu.setKeyboard(&this->board->getKeyboard());
    this->menu.setDisplay(&this->board->getDisplay());

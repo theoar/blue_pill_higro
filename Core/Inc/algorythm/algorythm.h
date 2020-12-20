@@ -59,7 +59,7 @@ namespace algorytm
       MenuItemFormattedRead<Higrometer, uint32_t> temperatureReadItem;
       MenuItemFormattedRead<BinaryRegulator<uint32_t>, bool> relayReadItem;
       MenuItemGenericReadWrite<BackupItem, uint16_t> humidityHysteresisReadWriteItem;
-      MenuItemGenericReadWrite<BackupItem, uint16_t> humidityTresholdReadWriteItem;;
+      MenuItemGenericReadWrite<BackupItem, uint16_t> humidityTresholdReadWriteItem;
 
       SimpleMenu<6> menu;
 

@@ -135,12 +135,12 @@ namespace board
     this->relayPin.configure(GpioTypes::GpioNr::B, LL_GPIO_PIN_15, LL_GPIO_MODE_OUTPUT, LL_GPIO_OUTPUT_OPENDRAIN, LL_GPIO_PULL_UP, LL_GPIO_MODE_OUTPUT_50MHz);
   }
 
-  MultiplexScrollDigitDisplay<4> & Board::getDisplay()
+  SegmentDisplayInterface & Board::getDisplay()
   {
     return this->display;
   }
 
-  ButtonKeyboardSimple<3>& Board::getKeyboard()
+  ButtonKeyboardInterface & Board::getKeyboard()
   {
     return this->keyboard;
   }

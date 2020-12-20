@@ -79,10 +79,10 @@ namespace board
       Board(Daemon *daemon);
       void init(Daemon *daemon);
 
-      MultiplexScrollDigitDisplay<4> & getDisplay();
+      SegmentDisplayInterface & getDisplay();
       Dht11 & getDhtDriver();
       Higrometer & getHigrometer();
-      ButtonKeyboardSimple<3> &getKeyboard();
+      ButtonKeyboardInterface & getKeyboard();
       Pin & getLed();
       Pin & getRelayPin();
       void setRelayState(bool enabled);

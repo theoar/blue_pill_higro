@@ -27,9 +27,13 @@ namespace menu
     class SimpleMenu : public IDaemon
     {
       private:
-	ButtonKeyboardSimple<3> *keyboard = nullptr;
-	MultiplexScrollDigitDisplay<4> *display = nullptr;
+	ButtonKeyboardInterface *keyboard = nullptr;
+	SegmentDisplayInterface *display = nullptr;
 	MenuItemInterface *items[size];
+	bool inScrollMenu[size];
+
+	bool atLeasOneInScroll = false;
+
 	SoftTimer idleTimer;
 	SoftTimer switchTimer;
 	static constexpr uint32_t IdleTimeout = 5000;
@@ -54,18 +58,22 @@ namespace menu
 	  this->switchTimer.start(this->SwitchTime);
 	}
 
-	void addItemAt(MenuItemInterface *item, uint32_t pos)
+	void addItemAt(MenuItemInterface *item, uint32_t pos, bool inScrollMenu)
 	{
 	  if(index<size)
+	  {
 	    this->items[pos] = item;
+	    this->inScrollMenu[pos] = inScrollMenu;
+	    this->atLeasOneInScroll |= inScrollMenu;
+	  }
 	}
 
-	void setDisplay(MultiplexScrollDigitDisplay<4> *display)
+	void setDisplay(SegmentDisplayInterface *display)
 	{
 	  this->display = display;
 	}
 
-	void setKeyboard(ButtonKeyboardSimple<3> *keyboard)
+	void setKeyboard(ButtonKeyboardInterface *keyboard)
 	{
 	  this->keyboard = keyboard;
 	}
@@ -100,8 +108,17 @@ namespace menu
 	    {
 	      if(this->switchTimer.checkAndRestart())
 	      {
-		this->index++;
-		this->index %= size;
+		if(this->atLeasOneInScroll)
+		{
+		  this->index++;
+		  this->index %= size;
+		  while(this->inScrollMenu[this->index]==false)
+		  {
+		    this->index++;
+		    this->index %= size;
+		  }
+		}
+
 	      }
 	    }
 	    break;

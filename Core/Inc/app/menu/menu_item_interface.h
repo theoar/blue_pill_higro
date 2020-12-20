@@ -44,10 +44,13 @@ namespace menu
   {
       typedef VarType (ProviderDataType::*GetterMethodType)(bool *);
       typedef void (ProviderDataType::*SetterMethodType)(VarType);
+      typedef void (*VarTypeToStrFunction)(char*, VarType);
     private:
 	ProviderDataType *provider;
 	GetterMethodType getter;
 	SetterMethodType setter;
+
+	VarTypeToStrFunction toStrFnc = nullptr;
 
 	VarType currentData;
 
@@ -62,9 +65,9 @@ namespace menu
 	bool isInEdit = false;
 
 	char error[16];
-	char prefix[16];
+	char prefix[8];
 	char dataFormat[16];
-	char sufix[16];
+	char sufix[8];
       public:
 	MenuItemGenericReadWrite(const MenuItemGenericReadWrite &other)
 	{
@@ -103,6 +106,11 @@ namespace menu
 	  strcpy(this->dataFormat, format);
 	}
 
+	void setDataFormat(VarTypeToStrFunction fnc)
+	{
+	  this->toStrFnc = fnc;
+	}
+
 	void setPrefix(const char *prefix)
 	{
 	  strcpy(this->prefix, prefix);
@@ -134,53 +142,82 @@ namespace menu
 	  this->provider = provider;
 	  this->getter = getter;
 	  this->setter = setter;
+	  this->currentData = (this->provider->*this->getter)(&this->dataPropet);
 	}
 
 	void draw(SegmentDisplayInterface *display)
 	{
 	  char buff[64];
 	  char format[64];
-	  char specialFormat[64];
 
-	  bool normalFormat = true;
+	  enum class DisplayE
+	  {
+	      Stable,
+	      Blink,
+	      Edit,
+	      Error
+	  } displayE = DisplayE::Error;
 
-	  sprintf(format, "%s%s%s", this->prefix, this->dataFormat, this->sufix);
-	  sprintf(buff, format, this->currentData);
+	  VarType value;
 
 	  if(this->isInEdit)
 	  {
-	    if(this->blinkTimer.checkCurrentAndRestart()==1)
-	    {
-	      sprintf(specialFormat, "%s", this->prefix);
+	    if(this->blinkTimer.checkCurrentAndRestart() == 1)
+	      displayE = DisplayE::Blink;
+	    else
+	      displayE = DisplayE::Edit;
 
-	      uint32_t standardLen = strlen(buff);
-	      uint32_t prefixLen = strlen(specialFormat);
-
-	      uint32_t x;
-	      for(x = prefixLen; x<standardLen; ++x)
-		specialFormat[x] = ' ';
-	      specialFormat[x] = 0;
-
-	      normalFormat = false;
-	    }
+	    value = this->currentData;
 	  }
 	  else
 	  {
-	    VarType value = (this->provider->*this->getter)(&this->dataPropet);
+	    value = (this->provider->*this->getter)(&this->dataPropet);
 
 	    if(this->dataPropet)
-	      sprintf(buff, format, value);
+	      displayE = DisplayE::Stable;
 	    else
-	    {
-	      normalFormat = false;
-	      strcpy(specialFormat, this->error);
-	    }
+	      displayE = DisplayE::Error;
 	  }
 
-	  if(normalFormat)
-	    display->display(buff);
-	  else
-	    display->display(specialFormat);
+	  switch (displayE)
+	  {
+	    case DisplayE::Blink:
+	      display->display(this->prefix);
+	    break;
+	    case DisplayE::Error:
+	      display->display(this->error);
+	    break;
+
+	    case DisplayE::Edit:
+	      if(this->toStrFnc==nullptr)
+	      {
+		sprintf(format, "%s%s%s", this->prefix, this->dataFormat, this->sufix);
+		sprintf(buff, format, value);
+	      }
+	      else
+	      {
+		this->toStrFnc(format, value);
+		sprintf(buff, "%s%s%s", this->prefix, format, this->sufix);
+	      }
+
+	      display->display(buff);
+	    break;
+
+	    case DisplayE::Stable:
+	      if(this->toStrFnc==nullptr)
+	      {
+		sprintf(format, "%s%s%s", this->prefix, this->dataFormat, this->sufix);
+		sprintf(buff, format, value);
+	      }
+	      else
+	      {
+		this->toStrFnc(format, value);
+		sprintf(buff, "%s%s%s", this->prefix, format, this->sufix);
+	      }
+	      display->display(buff);
+	    break;
+	  }
+
 	}
 
 	void setFocus()
@@ -251,11 +288,11 @@ namespace menu
     {
       typedef VarType ProviderDataType::*GetterMethodBoolType(bool *);
       typedef VarType ProviderDataType::*GetterMethodVoidType();
-
       private:
   	ProviderDataType *provider;
   	GetterMethodBoolType getterBool;
   	GetterMethodVoidType getterVoid;
+
 
   	char error[16];
   	char format[16];
@@ -289,6 +326,7 @@ namespace menu
   	  this->getterVoid = getter;
   	  this->getterBool = nullptr;
   	}
+
 
   	void draw(SegmentDisplayInterface *display)
   	{
