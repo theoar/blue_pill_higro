@@ -136,6 +136,24 @@ namespace devices
     this->setGpioAsOutput();
   }
 
+  void Dht11::initPowerGpio()
+  {
+    Gpio::init(this->powerGpioNr);
+    LL_GPIO_SetPinSpeed(this->hwPowerGpio, this->hwPowerPin, LL_GPIO_SPEED_FREQ_HIGH);
+    LL_GPIO_SetPinMode(this->hwPowerGpio, this->hwPowerPin, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(this->hwPowerGpio, this->hwPowerPin, LL_GPIO_OUTPUT_PUSHPULL);
+  }
+
+  void Dht11::powerUp()
+  {
+    LL_GPIO_SetOutputPin(this->hwPowerGpio, this->hwPowerPin);
+  }
+
+  void Dht11::powerDown()
+  {
+    LL_GPIO_ResetOutputPin(this->hwPowerGpio, this->hwPowerPin);
+  }
+
   uint32_t Dht11::getCaptureValue()
   {
     switch (this->timChannel)
@@ -220,10 +238,10 @@ namespace devices
 
     this->noResponseCnt++;
 
-    this->machineSt = MachineSt::StopTr;
+    this->machineSt = MachineSt::ErrorStopTr;
   }
 
-  void Dht11::init(GpioTypes::GpioNr gpio, uint32_t pin, TimerDefs::TimerNr timerNr, uint32_t timChannel)
+  void Dht11::init(GpioTypes::GpioNr gpio, uint32_t pin, TimerDefs::TimerNr timerNr, uint32_t timChannel, GpioTypes::GpioNr powerGpio, uint32_t powerPin)
   {
     this->trPin = pin;
     this->gpioNr = gpio;
@@ -232,10 +250,17 @@ namespace devices
     this->hwTimer = TimerDefs::getTimer(this->timerNr);
     this->hwGpio = Gpio::getGpio(this->gpioNr);
 
+    this->powerGpioNr = powerGpio;
+    this->hwPowerGpio = Gpio::getGpio(this->powerGpioNr);
+    this->hwPowerPin = powerPin;
+
     this->initGpio();
     this->initTimer();
 
     TimerEvents::getGeneralPurposeTimerEvents(this->timerNr)->writeCaptureEvent(this);
+
+    this->initPowerGpio();
+    this->powerUp();
 
     this->timer.start(this->powerWatiTms);
     this->machineSt = MachineSt::Wait;
@@ -404,12 +429,38 @@ namespace devices
 	this->setGpioAsOutput();
 	this->setPin();
 
-	if(this->noResponseCnt >= this->noResponseLimit)
-	  this->timer.start(this->powerWatiTms);
-	else
-	  this->timer.start(this->waitTms);
-
+	this->timer.start(this->waitTms);
 	this->machineSt = MachineSt::Wait;
+      }
+      break;
+
+      case MachineSt::ErrorStopTr:
+      {
+	this->timer.stop();
+
+	this->disableCapture();
+	this->disableCaptureIT();
+
+	this->stopTimer();
+	this->setGpioAsOutput();
+	this->setPin();
+
+	this->powerDown();
+
+	this->timer.start(this->powerWatiTms);
+	this->machineSt = MachineSt::ErrorStopWait;
+      }
+      break;
+
+      case MachineSt::ErrorStopWait:
+      {
+	if(this->timer.check())
+	{
+	  this->timer.start(this->powerWatiTms);
+	  this->setPin();
+	  this->powerUp();
+	  this->machineSt = MachineSt::Wait;
+	}
       }
       break;
 

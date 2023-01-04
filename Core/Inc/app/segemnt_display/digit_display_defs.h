@@ -81,6 +81,10 @@ namespace segment_display
 
 	  case 'O': return getBits(Segments::A, Segments::B, Segments::C, Segments::D, Segments::E, Segments::F);
 
+	  case 't': return getBits(Segments::D, Segments::E, Segments::F, Segments::G);
+
+	  case 'L': return getBits(Segments::D, Segments::E, Segments::F);
+
 	  case '1': return digit2SegmentMask(1);
 	  case '2': return digit2SegmentMask(2);
 	  case '3': return digit2SegmentMask(3);

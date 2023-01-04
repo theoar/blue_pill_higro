@@ -84,7 +84,7 @@ namespace binary_regulator
 	    {
 	      if(this->state)
 	      {
-		if(this->currentValue <= this->desiredValue - this->histeresis)
+		if(this->currentValue + this->histeresis <= this->desiredValue)
 		  this->state = false;
 	      }
 	      else

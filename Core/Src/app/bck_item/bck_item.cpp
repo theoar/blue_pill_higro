@@ -57,7 +57,18 @@ namespace bck_item
 
   void BackupItem::set(uint16_t val)
   {
-    BackupDomain::writeRegister(this->index, val);
+    if(this->get()!=val)
+    {
+      this->modified=true;
+      BackupDomain::writeRegister(this->index, val);
+    }
+  }
+
+  bool BackupItem::wasModified()
+  {
+    bool ret = this->modified;
+    this->modified = false;
+    return ret;
   }
 
   void BackupItem::validate(uint16_t min, uint16_t max, uint16_t def)

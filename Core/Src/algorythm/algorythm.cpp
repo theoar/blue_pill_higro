@@ -26,25 +26,35 @@ namespace algorytm
 
   void Algorythm::initRegulator()
   {
+    this->temp2HumFunction.setGetArgumentCallable([this] {
+	return this->board->getHigrometer().getTemperature()/100.f;
+    });
+
     this->regulator.setType(RegulatorType::Cooler);
-    this->regulator.setDesiredValue(this->humidityTreshold.get());
+    this->regulator.setDesiredValue(this->temp2HumFunction.getValue());
     this->regulator.setHisteresis(this->humidityHysteresis.get());
+  }
+
+ template<typename T>
+  void setupReadWriteItem(T & menuItem, BackupItem & backupItem, const char * prefix, const char *sufix, const char * dataFormat, typename T::VarTypeE step)
+  {
+    menuItem.setProvider(&backupItem, &BackupItem::get, &BackupItem::set);
+    menuItem.setDataFormat(dataFormat);
+    menuItem.setPrefix(prefix);
+    menuItem.setSufix(sufix);
+    menuItem.setRange(backupItem.min(), backupItem.max());
+    menuItem.setStep(step);
   }
 
   void Algorythm::initMenu(Daemon *daemon)
   {
-   this->humidityHysteresisReadWriteItem.setProvider(&this->humidityHysteresis, &BackupItem::get, &BackupItem::set);
-   this->humidityTresholdReadWriteItem.setProvider(&this->humidityTreshold, &BackupItem::get, &BackupItem::set);
+   setupReadWriteItem(this->humidityHysteresisReadWriteItem, this->humidityHysteresis, "Hi.", nullptr, "%02hu", 1);
 
-   this->humidityHysteresisReadWriteItem.setDataFormat("%02hu");
-   this->humidityHysteresisReadWriteItem.setPrefix("Hi.");
-   this->humidityHysteresisReadWriteItem.setRange(this->humidityHysteresis.min(), this->humidityHysteresis.max());
-   this->humidityHysteresisReadWriteItem.setStep(1);
+   setupReadWriteItem(this->rh1PointReadWriteItem, this->temp2HumFunction.rh1Point, "0h.", nullptr, "%02hu", 1);
+   setupReadWriteItem(this->temp1PointReadWriteItem, this->temp2HumFunction.temp1Point, "0c.", nullptr, "%02hu", 1);
+   setupReadWriteItem(this->rh2PointReadWriteItem, this->temp2HumFunction.rh2Point, "1h.", nullptr, "%02hu", 1);
+   setupReadWriteItem(this->temp2PointReadWriteItem, this->temp2HumFunction.temp2Point, "1c.", nullptr, "%02hu", 1);
 
-   this->humidityTresholdReadWriteItem.setDataFormat("%02hu");
-   this->humidityTresholdReadWriteItem.setPrefix("On.");
-   this->humidityTresholdReadWriteItem.setRange(this->humidityTreshold.min(), this->humidityTreshold.max());
-   this->humidityTresholdReadWriteItem.setStep(1);
 
    this->humidityReadItem.setProviderFeedback(&this->board->getHigrometer(), &Higrometer::getHumidity);
    this->humidityReadItem.setPrefix("Hu.");
@@ -52,7 +62,7 @@ namespace algorytm
    this->humidityReadItem.setError("Hu Error");
 
    this->temperatureReadItem.setProviderFeedback(&this->board->getHigrometer(), &Higrometer::getTemperature);
-   this->temperatureReadItem.setSprintfFunction([](char *buff, uint32_t val) -> void{  sprintf(buff, "%2lu.%1lu", val/100, (val/10) % 10); });
+   this->temperatureReadItem.setSprintfFunction([](char *buff, uint32_t val) -> void{sprintf(buff, "%2lu.%1lu", val/100, (val/10) % 10);});
    this->temperatureReadItem.setSufix("C");
    this->temperatureReadItem.setError("Hu Error");
 
@@ -60,12 +70,21 @@ namespace algorytm
    this->relayReadItem.setPrefix("P.");
    this->relayReadItem.setSprintfFunction([](char *buff, bool val) -> void{ sprintf(buff, "%s", val ? " On" : "OFF"); });
 
-   this->menu.addItemAt(&this->timeItem, 0, false);
-   this->menu.addItemAt(&this->humidityReadItem, 1, true);
-   this->menu.addItemAt(&this->temperatureReadItem, 2, true);
-   this->menu.addItemAt(&this->relayReadItem, 3, false);
-   this->menu.addItemAt(&this->humidityHysteresisReadWriteItem, 4, false);
-   this->menu.addItemAt(&this->humidityTresholdReadWriteItem, 5, false);
+   this->calculatedHumidityTreshold.setProvider(&this->temp2HumFunction, &TemperatureHumidityLinearFunction::getValue);
+   this->calculatedHumidityTreshold.setSprintfFunction([](char *buff, uint16_t val) -> void{sprintf(buff, "%2hu", val);});
+   this->calculatedHumidityTreshold.setPrefix("Ch.");
+
+   this->menu.addItem(&this->timeItem, false);
+   this->menu.addItem(&this->humidityReadItem, true);
+   this->menu.addItem(&this->temperatureReadItem, true);
+   this->menu.addItem(&this->relayReadItem, false);
+   this->menu.addItem(&this->humidityHysteresisReadWriteItem, false);
+   this->menu.addItem(&this->calculatedHumidityTreshold, true);
+   this->menu.addItem(&this->temp1PointReadWriteItem, false);
+   this->menu.addItem(&this->rh1PointReadWriteItem, false);
+   this->menu.addItem(&this->temp2PointReadWriteItem, false);
+   this->menu.addItem(&this->rh2PointReadWriteItem, false);
+
 
    this->menu.setKeyboard(&this->board->getKeyboard());
    this->menu.setDisplay(&this->board->getDisplay());
@@ -80,8 +99,24 @@ namespace algorytm
 
   void Algorythm::handleAlgol()
   {
-    this->regulator.setDesiredValue(this->humidityTreshold.get());
-    this->regulator.setHisteresis(this->humidityHysteresis.get());
+    if(this->menu.enteredIntoDisplayMode())
+    {
+      this->temp2HumFunction.update();
+      this->regulator.setHisteresis(this->humidityHysteresis.get());
+    }
+
+    if(this->board->getHigrometer().isConnected())
+    {
+      uint32_t humidity = this->board->getHigrometer().getHumidity();
+      uint32_t temperature = this->board->getHigrometer().getTemperature();
+      this->regulator.setCurrentValue(humidity/100);
+      this->regulator.setDesiredValue(this->temp2HumFunction.getValue(temperature/100.f));
+    }
+    else
+    {
+      this->regulator.setCurrentValue(50);
+      this->regulator.setDesiredValue(100);
+    }
 
     switch (this->machineSt)
     {
@@ -94,9 +129,6 @@ namespace algorytm
 	}
 	else
 	{
-	  uint32_t humidity = this->board->getHigrometer().getHumidity();
-	  this->regulator.setCurrentValue(humidity/100);
-
 	  if(this->regulator.getState())
 	  {
 	    if(this->maxWorkTimer.isStopped())

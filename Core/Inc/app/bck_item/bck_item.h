@@ -24,7 +24,10 @@ namespace bck_item
      uint16_t _max = 0xffff;
      uint16_t _def = 0;
 
+     bool modified{false};
+
      public:
+
      BackupItem() = default;
      BackupItem(uint16_t _index);
      BackupItem(uint16_t __index, uint16_t __min, uint16_t __max, uint16_t __def);
@@ -34,8 +37,11 @@ namespace bck_item
 
       uint16_t min(void);
       uint16_t max(void);
+
       void set(uint16_t val);
       void validate(uint16_t min, uint16_t max, uint16_t def);
+
+      bool wasModified();
   };
 
   class BackupItemBuilder

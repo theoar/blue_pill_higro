@@ -8,6 +8,8 @@
 #ifndef INC_APP_MENU_MENU_ITEM_INTERFACE_H_
 #define INC_APP_MENU_MENU_ITEM_INTERFACE_H_
 
+#include <functional>
+
 #include "app/segemnt_display/display_interface.h"
 #include "app/daemon_ctrl/daemon_interface.h"
 
@@ -17,6 +19,9 @@
 #include "app/soft_timer/blink_timer.h"
 
 #include <stdio.h>
+#include <cstring>
+
+
 
 using namespace segment_display;
 using namespace daemon_ctrl;
@@ -39,9 +44,13 @@ namespace menu
       virtual void clearFocus() = 0;
   };
 
+
   template<typename ProviderDataType, typename VarType>
   class MenuItemGenericReadWrite : public MenuItemInterface
   {
+    public:
+      typedef VarType VarTypeE;
+    private:
       typedef VarType (ProviderDataType::*GetterMethodType)(bool *);
       typedef void (ProviderDataType::*SetterMethodType)(VarType);
       typedef void (*VarTypeToStrFunction)(char*, VarType);
@@ -68,6 +77,15 @@ namespace menu
 	char prefix[8];
 	char dataFormat[16];
 	char sufix[8];
+
+	void strncpy(char * dst, const char *src, unsigned size)
+	{
+	  if(src!=nullptr)
+	    std::strncpy(dst, src, size);
+	  else
+	    memset(dst, 0, size);
+	}
+
       public:
 	MenuItemGenericReadWrite(const MenuItemGenericReadWrite &other)
 	{
@@ -103,7 +121,7 @@ namespace menu
 
 	void setDataFormat(const char *format)
 	{
-	  strcpy(this->dataFormat, format);
+	  this->strncpy(this->dataFormat, format, sizeof(this->dataFormat));
 	}
 
 	void setDataFormat(VarTypeToStrFunction fnc)
@@ -113,17 +131,17 @@ namespace menu
 
 	void setPrefix(const char *prefix)
 	{
-	  strcpy(this->prefix, prefix);
+	  this->strncpy(this->prefix, prefix, sizeof(this->prefix));
 	}
 
 	void setError(const char *error)
 	{
-	  strcpy(this->error, error);
+	  this->strncpy(this->error, error, sizeof(this->error));
 	}
 
 	void setSufix(const char * sufix)
 	{
-	  strcpy(this->sufix, sufix);
+	  this->strncpy(this->sufix, sufix, sizeof(this->sufix));
 	}
 
 	void setRange(VarType min, VarType max)
@@ -592,6 +610,72 @@ namespace menu
       }
   };
 
+   class MenuItemFormattedReadOnlyFunction: public MenuItemInterface
+  {
+    private:
+      typedef void (*PrintfFunctionType)(char*);
+      std::function<void (char *)> printfFunction;
+
+    public:
+      MenuItemFormattedReadOnlyFunction() = default;
+
+      template<typename Callable>
+      void setSprintfFunction(Callable printfFunction)
+      {
+	this->printfFunction = printfFunction;
+      }
+
+      virtual void draw(SegmentDisplayInterface *display)
+      {
+	char buff[32];
+	memset(buff, 0, sizeof(buff));
+	this->printfFunction(buff);
+	display->display(buff);
+      }
+
+      void setFocus(){ return; }
+      void clearFocus(){}
+      bool focused() { return false; }
+      void actionUp() { return; }
+      void actionDown() { return; }
+      void actionEnter(){ return; }
+
+  };
+
+//  template<typename VarType>
+//  class MenuItemFunctionReadWrite : MenuItemInterface
+//  {
+//    private:
+//    MenuItemFormattedRead<MenuItemFunctionReadWrite, VarType> menuItem;
+//
+//    public:
+//    MenuItemFunctionReadWrite()
+//    {
+//
+//    }
+//
+//    VarType get(void)
+//    {
+//
+//    }
+//
+//    VarType get(bool *result)
+//    {
+//
+//    }
+//
+//
+//    virtual void draw(SegmentDisplayInterface *display) { this->menuItem.draw(display); }
+//
+//    virtual void actionUp()  { this->menuItem.actionUp(); }
+//    virtual void actionDown() { this->menuItem.actionDown(); }
+//    virtual void actionEnter() { this->menuItem.actionEnter(); }
+//
+//    virtual bool focused() { return this->menuItem.focused(); }
+//
+//    virtual void setFocus() { this->menuItem.setFocus(); }
+//    virtual void clearFocus() { this->menuItem.clearFocus(); }
+//  };
 }
 
 

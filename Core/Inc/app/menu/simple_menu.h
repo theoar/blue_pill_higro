@@ -32,19 +32,28 @@ namespace menu
 	MenuItemInterface *items[size];
 	bool inScrollMenu[size];
 
+	uint32_t itemsCount{0};
+
 	bool atLeasOneInScroll = false;
 
 	SoftTimer idleTimer;
 	SoftTimer switchTimer;
-	static constexpr uint32_t IdleTimeout = 5000;
-	static constexpr uint32_t SwitchTime = 2000;
+	static constexpr uint32_t IdleTimeout = 10000;
+	static constexpr uint32_t SwitchTime = 5000;
 
 	uint32_t index = 0;
 
 	enum class MachineSt
 	{
 	  EditMode, DisplayMode
-	} machineSt = MachineSt::DisplayMode;
+	} machineSt = MachineSt::DisplayMode, previousMachineSt = MachineSt::DisplayMode;
+
+	void setMachineState(MachineSt newState)
+	{
+	  this->previousMachineSt = this->machineSt;
+	  this->machineSt = newState;
+	}
+
       public:
 	SimpleMenu()
 	{
@@ -54,7 +63,7 @@ namespace menu
 	  this->idleTimer.stop();
 	  this->switchTimer.stop();
 
-	  this->machineSt = MachineSt::DisplayMode;
+	  this->setMachineState(MachineSt::DisplayMode);
 	  this->switchTimer.start(this->SwitchTime);
 	}
 
@@ -65,7 +74,13 @@ namespace menu
 	    this->items[pos] = item;
 	    this->inScrollMenu[pos] = inScrollMenu;
 	    this->atLeasOneInScroll |= inScrollMenu;
+	    this->itemsCount++;
 	  }
+	}
+
+	void addItem(MenuItemInterface *item, bool inScrollMenu)
+	{
+	  this->addItemAt(item, this->getItemsCount(), inScrollMenu);
 	}
 
 	void setDisplay(SegmentDisplayInterface *display)
@@ -78,6 +93,21 @@ namespace menu
 	  this->keyboard = keyboard;
 	}
 
+	uint32_t getItemsCount() const
+	{
+	  return this->itemsCount;
+	}
+
+	bool enteredIntoEditMode() const
+	{
+	  return this->machineSt==MachineSt::EditMode && this->previousMachineSt==MachineSt::DisplayMode;
+	}
+
+	bool enteredIntoDisplayMode() const
+	{
+	  return this->machineSt==MachineSt::DisplayMode && this->previousMachineSt==MachineSt::EditMode;
+	}
+
 	//IDaemon----------------------------------------------
 	void handler()
 	{
@@ -85,7 +115,7 @@ namespace menu
 
 	  if(userAction)
 	  {
-	    this->machineSt = MachineSt::EditMode;
+	    this->setMachineState(MachineSt::EditMode);
 	    this->idleTimer.start(this->IdleTimeout);
 	  }
 	  else
@@ -93,7 +123,7 @@ namespace menu
 	    if(this->idleTimer.check())
 	    {
 	      this->idleTimer.stop();
-	      this->machineSt = MachineSt::DisplayMode;
+	      this->setMachineState(MachineSt::DisplayMode);
 
 	      this->items[this->index]->clearFocus();
 
@@ -111,11 +141,11 @@ namespace menu
 		if(this->atLeasOneInScroll)
 		{
 		  this->index++;
-		  this->index %= size;
+		  this->index %= this->itemsCount;
 		  while(this->inScrollMenu[this->index]==false)
 		  {
 		    this->index++;
-		    this->index %= size;
+		    this->index %= this->itemsCount;
 		  }
 		}
 
@@ -140,7 +170,7 @@ namespace menu
 		    else
 		    {
 		      this->index++;
-		      this->index %= size;
+		      this->index %= this->itemsCount;
 		    }
 		  }
 
@@ -151,7 +181,7 @@ namespace menu
 		    else
 		    {
 		      if( this->index == 0)
-			 this->index =  size;
+			 this->index = this->itemsCount;
 
 		      this->index--;
 		    }
@@ -168,6 +198,7 @@ namespace menu
 	  this->items[this->index]->draw(this->display);
 	}
 	//-----------------------------------------------------
+
 
     };
 }

@@ -32,7 +32,7 @@ namespace devices
     private:
       enum class MachineSt
       {
-	Idle, PreparingStart, WaitingForStart, Transmitting, Recieved, StopTr, Wait
+	Idle, PreparingStart, WaitingForStart, Transmitting, Recieved, StopTr, Wait, ErrorStopTr, ErrorStopWait,
       } machineSt = MachineSt::Idle;
 
       SoftTimer timer;
@@ -55,13 +55,16 @@ namespace devices
       static constexpr uint32_t noResponseLimit = 5;
       uint32_t noResponseCnt = 0;
 
-
       uint32_t trPin = 0;
       uint32_t timChannel = 0;
       TimerDefs::TimerNr timerNr;
       GpioTypes::GpioNr gpioNr;
       GPIO_TypeDef *hwGpio = nullptr;
       TIM_TypeDef *hwTimer = nullptr;
+
+      GpioTypes::GpioNr powerGpioNr;
+      GPIO_TypeDef *hwPowerGpio = nullptr;
+      uint32_t hwPowerPin = 0;
 
       static constexpr uint32_t FRAME_CRC_SIZE = 1;
       static constexpr uint32_t FRAME_DATA_SIZE = 4;
@@ -96,8 +99,12 @@ namespace devices
       void initTimer();
       void onError();
 
+      void initPowerGpio();
+      void powerUp();
+      void powerDown();
+
     public:
-      void init(GpioTypes::GpioNr gpio, uint32_t pin, TimerDefs::TimerNr timerNr, uint32_t timChannel);
+      void init(GpioTypes::GpioNr gpio, uint32_t pin, TimerDefs::TimerNr timerNr, uint32_t timChannel, GpioTypes::GpioNr powerGpio, uint32_t powerPin);
 
       bool isError();
       bool isBusy();
