@@ -37,8 +37,8 @@ namespace devices
 
       SoftTimer timer;
 
-      static constexpr uint32_t waitTms = 200;
-      static constexpr uint32_t powerWatiTms = 2000;
+      static constexpr uint32_t waitTms = 100;
+      static constexpr uint32_t powerWatiTms = 1000;
       static constexpr uint32_t maxTransmissionTms = 75;
       static constexpr uint32_t preparationTms = 25;
 

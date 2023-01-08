@@ -121,7 +121,7 @@ namespace board
 
   void Board::initHigrometer(Daemon *daemon)
   {
-    this->higrometer.init(&dht11, 2000);
+    this->higrometer.init(&dht11, 10000);
     daemon->addAndStartProcess(&this->higrometer);
   }
 

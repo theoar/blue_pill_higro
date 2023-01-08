@@ -17,11 +17,13 @@
 #include "app/menu/simple_menu.h"
 #include "app/soft_timer/soft_timer.h"
 #include "app/bck_item/bck_item.h"
-#include "app/linear_function/linear_function.h"
-
-#include <functional>
+#include "app/math_functions/generic_function.h"
+#include "app/math_functions/point.h"
 
 #include "peripherials/bkp/bkp.h"
+
+#include <functional>
+#include <cmath>
 
 using namespace board;
 using namespace daemon_ctrl;
@@ -31,64 +33,128 @@ using namespace menu;
 
 namespace algorytm
 {
-  class TemperatureHumidityLinearFunction
+  class Temperature2HumidityRelation
   {
+    public:
+      enum FunctionFitType
+      {
+	Lin,
+	Min = Lin,
+	Log_2,
+	Log_e,
+	Log_10,
+	Max = Log_10,
+	Default = Lin
+      };
+
+      GenericFunction::FunctionBase getFitFunction(FunctionFitType fnc)
+      {
+	if(fnc==FunctionFitType::Lin)
+	  return &linear;
+
+	if(fnc==FunctionFitType::Log_2)
+	  return &std::log2;
+
+	if(fnc==FunctionFitType::Log_10)
+	  return &std::log10;
+
+	if(fnc==FunctionFitType::Log_e)
+	  return &std::log;
+
+	 return &linear;
+      }
     private:
-      std::function<float (void)> getArgument;
-      LinearFunction<> function;
+      GenericFunction function;
+      Higrometer *higromenter;
+      bool blockUpdate = false;
+
+      static inline constexpr BackupItemUnsigned::Data DefaultTemp1Point{0, 99, 15};
+      static inline constexpr BackupItemUnsigned::Data DefaultRh1Point{31, 89, 85};
+      static inline constexpr BackupItemUnsigned::Data DefaultTemp2Point{0, 99, 25};
+      static inline constexpr BackupItemUnsigned::Data DefaultRh2Point{31, 89, 70};
+
+      static inline constexpr BackupItemUnsigned::Data DefaultFitType{FunctionFitType::Min, FunctionFitType::Max, FunctionFitType::Default};
 
     public:
-      BackupItem temp1Point = BackupItemBuilder::next(0, 99, 10);
-      BackupItem rh1Point = BackupItemBuilder::next(31, 89, 50);
-      BackupItem temp2Point = BackupItemBuilder::next(0, 99, 30);
-      BackupItem rh2Point = BackupItemBuilder::next(31, 89, 89);
+      BackupItemUnsigned temp1Point = BackupItemBuilder::next<BackupItemUnsigned>(DefaultTemp1Point);
+      BackupItemUnsigned rh1Point = BackupItemBuilder::next<BackupItemUnsigned>(DefaultRh1Point);
+      BackupItemUnsigned temp2Point = BackupItemBuilder::next<BackupItemUnsigned>(DefaultTemp2Point);
+      BackupItemUnsigned rh2Point = BackupItemBuilder::next<BackupItemUnsigned>(DefaultRh2Point);
 
-      TemperatureHumidityLinearFunction()
+      BackupItemUnsigned fitType = BackupItemBuilder::next<BackupItemUnsigned>(DefaultFitType);
+
+      Temperature2HumidityRelation(Higrometer *higromenter_) : higromenter(higromenter_)
       {
-	this->rh1Point.set(50);
-	this->temp1Point.set(15);
+	temp1Point.observe(std::bind(&Temperature2HumidityRelation::pointCoordsChanged, this, std::placeholders::_1));
+	rh1Point.observe(std::bind(&Temperature2HumidityRelation::pointCoordsChanged, this, std::placeholders::_1));
+	temp2Point.observe(std::bind(&Temperature2HumidityRelation::pointCoordsChanged, this, std::placeholders::_1));
+	rh2Point.observe(std::bind(&Temperature2HumidityRelation::pointCoordsChanged, this, std::placeholders::_1));
 
-	this->rh2Point.set(80);
-	this->temp2Point.set(30);
+	fitType.observe(std::bind(&Temperature2HumidityRelation::fitFunctionChanged, this, std::placeholders::_1));
 
-	this->function.describe(LinearFunction<>::Point{temp1Point.get(), rh1Point.get()}, LinearFunction<>::Point{temp2Point.get(), rh2Point.get()});
+	this->pointCoordsChanged(nullptr);
       }
 
-      template<typename T>
-      void setGetArgumentCallable(T callable)
+      uint32_t get()
       {
-	this->getArgument = callable;
+	return this->function.value(this->higromenter->getTemperature()/100.f);
       }
 
-      uint16_t getValue()
+      void updateFunction()
       {
-	return this->function.value(this->getArgument());
+	if(this->blockUpdate)
+	  return;
+
+	if(temp1Point.get()!=temp2Point.get())
+	{
+	  this->function.describe(FunctionPoint{(float)temp1Point.get(), (float)rh1Point.get()},
+				  FunctionPoint{(float)temp2Point.get(), (float)rh2Point.get()},
+				  getFitFunction(static_cast<FunctionFitType>(this->fitType.get())));
+	}
+	else
+	{
+	  this->function.describe(FunctionPoint{(float)temp1Point.min(), (float)rh1Point.get()},
+				  FunctionPoint{(float)temp1Point.max(), (float)rh1Point.get()},
+				  getFitFunction(FunctionFitType::Lin));
+	}
       }
 
-      uint16_t getValue(float argument)
+      void pointCoordsChanged(BackupItemUnsigned *source)
       {
-	return this->function.value(argument);
+	this->updateFunction();
       }
 
-      void update()
+      void fitFunctionChanged(BackupItemUnsigned *source)
       {
-	this->function.describe(LinearFunction<>::Point{temp1Point.get(), rh1Point.get()}, LinearFunction<>::Point{temp2Point.get(), rh2Point.get()});
+	this->updateFunction();
+      }
+
+      void restoreDefaults()
+      {
+	this->blockUpdate = true;
+
+	temp1Point.restoreDefault();
+	rh1Point.restoreDefault();
+	temp2Point.restoreDefault();
+	rh2Point.restoreDefault();
+	fitType.restoreDefault();
+
+	this->blockUpdate = false;
+
+	this->updateFunction();
       }
 
   };
 
-  class Algorythm : public IDaemon
+   class Algorythm : public IDaemon
   {
     public:
-      Algorythm();
-      Algorythm(Board *board, Daemon *daemon);
-
-      void setBoard(Board *board);
-      void initRegulator();
-      void initMenu(Daemon *daemon);
+      Algorythm(Board *board_, Daemon *daemon);
 
       void handler() override;
+
     private:
+
       enum class MachineSt
       {
 	WorkingWithRegulator,
@@ -97,40 +163,52 @@ namespace algorytm
 	Blockade
       } machineSt = MachineSt::WorkingWithRegulator;
 
+      Board *board = nullptr;
+
+      SimpleMenu<15> menu;
+      Temperature2HumidityRelation temp2HumFunction;
+      BinaryRegulator<uint32_t> regulator;
+
+      std::function<uint16_t (void)> getDesiredHumidityValue;
+
       SoftTimer maxWorkTimer;
       SoftTimer blockadeTimer;
 
-      BackupItem humidityHysteresis = BackupItemBuilder::next(1, 15, 5);
-      //BackupItem humidityTreshold = BackupItemBuilder::next(31, 89, 50);
-
-      TemperatureHumidityLinearFunction temp2HumFunction;
+      static inline constexpr BackupItemUnsigned::Data DefaultHumidityHisteresis{1, 15, 5};
+      BackupItemUnsigned humidityHysteresis = BackupItemBuilder::next<BackupItemUnsigned>(DefaultHumidityHisteresis);
 
       MenuItemTime timeItem;
 
-      MenuItemFormattedRead<Higrometer, uint32_t> humidityReadItem;
-      MenuItemFormattedRead<Higrometer, uint32_t> temperatureReadItem;
-      MenuItemFormattedRead<BinaryRegulator<uint32_t>, bool> relayReadItem;
-      MenuItemGenericReadWrite<BackupItem, uint16_t> humidityHysteresisReadWriteItem;
-    //  MenuItemGenericReadWrite<BackupItem, uint16_t> humidityTresholdReadWriteItem;
+      MenuItemGenericReadWriteFunctional<uint32_t> humidityReadItem;
+      MenuItemGenericReadWriteFunctional<uint32_t> temperatureReadItem;
 
-      MenuItemFormattedRead<TemperatureHumidityLinearFunction, uint16_t> calculatedHumidityTreshold;
-      MenuItemGenericReadWrite<BackupItem, uint16_t> temp1PointReadWriteItem;
-      MenuItemGenericReadWrite<BackupItem, uint16_t> rh1PointReadWriteItem;
-      MenuItemGenericReadWrite<BackupItem, uint16_t> temp2PointReadWriteItem;
-      MenuItemGenericReadWrite<BackupItem, uint16_t> rh2PointReadWriteItem;
+      MenuItemGenericReadWriteFunctional<bool> relayReadItem;
 
-      SimpleMenu<10> menu;
+      MenuItemGenericReadWriteFunctional<BackupItemUnsigned::DataType> humidityHysteresisReadWriteItem;
 
-      BinaryRegulator<uint32_t> regulator;
+      MenuItemGenericReadWriteFunctional<uint32_t> calculatedHumidityTreshold;
+      MenuItemGenericReadWriteFunctional<BackupItemUnsigned::DataType> temp1PointReadWriteItem;
+      MenuItemGenericReadWriteFunctional<BackupItemUnsigned::DataType> rh1PointReadWriteItem;
+      MenuItemGenericReadWriteFunctional<BackupItemUnsigned::DataType> temp2PointReadWriteItem;
+      MenuItemGenericReadWriteFunctional<BackupItemUnsigned::DataType> rh2PointReadWriteItem;
+      MenuItemGenericReadWriteFunctional<BackupItemUnsigned::DataType> fitTypeReadWriteItem;
+
+
+      bool factoryRestart{false};
+      MenuItemGenericReadWriteFunctional<bool> restartDefaultReadWriteItem;
+
 
       void handleAlgol();
+      void setBoard(Board *board);
+      void initRegulator();
+      void initMenu(Daemon *daemon);
+
+      void factoryReset();
 
       static constexpr uint32_t maxWorkTime = 60*60*1000;
       static constexpr uint32_t blockadeTime = 10*60*1000;
 
-      Board *board = nullptr;
   };
-
 
 }
 

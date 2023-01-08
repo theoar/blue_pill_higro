@@ -18,59 +18,53 @@ namespace bkp
     LL_PWR_EnableBkUpAccess();
   }
 
-  volatile uint32_t * BackupDomain::dataPointer(uint16_t index)
+  uint32_t BackupDomain::readRegister(uint16_t index, bool *result)
   {
-    if(index>= 0 && index<=9 )
-      return (&BKP->DR1)+index;
+    uint32_t value{0};
+    bool status{false};
+    if(index+LL_RTC_BKP_DR1>RTC_BKP_NUMBER)
+    {
+      status = false;
+      value = 0;
+    }
     else
-      return nullptr;
-  }
-
-  uint16_t BackupDomain::readRegister(uint16_t index)
-  {
-    volatile uint32_t * ptr = BackupDomain::dataPointer(index);
-    if(ptr!=0)
-      return (uint16_t)((*BackupDomain::dataPointer(index))&0xffff);
-    else
-      return 0;
-  }
-
-  uint16_t BackupDomain::readRegister(uint16_t index, bool *result)
-  {
-    volatile uint32_t * ptr = BackupDomain::dataPointer(index);
-
-    *result = ptr != nullptr;
+    {
+      status = true;
+      value = LL_RTC_BKP_GetRegister(BKP, index+LL_RTC_BKP_DR1);
+    }
 
     if(result)
-      return (uint16_t)((*BackupDomain::dataPointer(index))&0xffff);
+      *result = status;
+
+    return value;
+  }
+
+  void BackupDomain::readRegisters(uint32_t *destination, uint16_t index, uint16_t count)
+  {
+    for(uint16_t x = 0; x<count; ++x)
+      destination[x] = BackupDomain::readRegister(index+x);
+  }
+
+  void BackupDomain::writeRegister(uint16_t index, uint32_t data, bool *result)
+  {
+    bool status{false};
+    if(index+LL_RTC_BKP_DR1>RTC_BKP_NUMBER)
+    {
+      status = false;
+    }
     else
-      return 0;
-  }
+    {
+      status = true;
+      LL_RTC_BKP_SetRegister(BKP, index+LL_RTC_BKP_DR1, data);
+    }
 
-  void BackupDomain::readRegisters(uint16_t *destination, uint16_t index, uint16_t count)
-  {
-    for(uint16_t x = 0; x<count; ++x)
-      destination[x] = BackupDomain::readRegister(index+1+x);
-  }
-
-  void BackupDomain::writeRegister(uint16_t index, uint16_t data)
-  {
-    volatile uint32_t * ptr= BackupDomain::dataPointer(index);
-    if(ptr!=nullptr)
-      *ptr=data;
-  }
-
-  void BackupDomain::writeRegister(uint16_t index, uint16_t data, bool *result)
-  {
-    volatile uint32_t * ptr= BackupDomain::dataPointer(index);
-    *result =  ptr!=nullptr;
     if(result)
-      *ptr=data;
+      *result = status;
   }
 
-  void BackupDomain::writeRegisters(uint16_t *source, uint16_t index, uint16_t count)
+  void BackupDomain::writeRegisters(uint32_t *source, uint16_t index, uint16_t count)
   {
     for(uint16_t x = 0; x<count; ++x)
-      BackupDomain::writeRegister(x+1+index, source[x]);
+      BackupDomain::writeRegister(x+index, source[x]);
   }
 }

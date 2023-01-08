@@ -31,14 +31,16 @@ namespace binary_regulator
 
       public:
 
-	void setType(RegulatorType type)
+	auto & setType(RegulatorType type)
 	{
 	  this->type = type;
+	  return *this;
 	}
 
-	void setDesiredValue(T value)
+	auto & setDesiredValue(T value)
 	{
 	  this->desiredValue = value;
+	  return *this;
 	}
 
 	T getDesiredValue()
@@ -46,9 +48,10 @@ namespace binary_regulator
 	  return this->desiredValue;
 	}
 
-	void setHisteresis(T value)
+	auto & setHisteresis(T value)
 	{
 	  this->histeresis = value;
+	  return *this;
 	}
 
 	T getHisteresis()
@@ -56,9 +59,10 @@ namespace binary_regulator
 	  return this->desiredValue;
 	}
 
-	void setCurrentValue(T value)
+	auto & setCurrentValue(T value)
 	{
 	  this->currentValue = value;
+	  return *this;
 	}
 
 	bool getState()

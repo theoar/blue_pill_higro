@@ -18,9 +18,9 @@
 #include "app/soft_timer/soft_timer.h"
 #include "app/soft_timer/blink_timer.h"
 
-#include <stdio.h>
+//#include <stdio.h>
 #include <cstring>
-
+#include <limits>
 
 
 using namespace segment_display;
@@ -44,432 +44,345 @@ namespace menu
       virtual void clearFocus() = 0;
   };
 
-
-  template<typename ProviderDataType, typename VarType>
-  class MenuItemGenericReadWrite : public MenuItemInterface
-  {
-    public:
-      typedef VarType VarTypeE;
-    private:
-      typedef VarType (ProviderDataType::*GetterMethodType)(bool *);
-      typedef void (ProviderDataType::*SetterMethodType)(VarType);
-      typedef void (*VarTypeToStrFunction)(char*, VarType);
-    private:
-	ProviderDataType *provider;
-	GetterMethodType getter;
-	SetterMethodType setter;
-
-	VarTypeToStrFunction toStrFnc = nullptr;
-
-	VarType currentData;
-
-	VarType min;
-	VarType max;
-	VarType step;
-
-	BlinkTimer blinkTimer;
-
-	bool dataPropet = false;
-
-	bool isInEdit = false;
-
-	char error[16];
-	char prefix[8];
-	char dataFormat[16];
-	char sufix[8];
-
-	void strncpy(char * dst, const char *src, unsigned size)
-	{
-	  if(src!=nullptr)
-	    std::strncpy(dst, src, size);
-	  else
-	    memset(dst, 0, size);
-	}
-
-      public:
-	MenuItemGenericReadWrite(const MenuItemGenericReadWrite &other)
-	{
-	  this->provider = other.provider;
-	  this->getter = other.getter;
-	  this->setter = other.setter;
-	  this->currentData = other.currentData;
-
-	  this->blinkTimer = other.blinkTimer;
-
-	  this->dataPropet = other.dataPropet;
-
-	  this->isInEdit = other.isInEdit;
-
-	  memcpy(this->dataFormat, other.dataFormat, sizeof(this->dataFormat));
-	  memcpy(this->prefix, other.prefix, sizeof(this->prefix));
-	  memcpy(this->sufix, other.sufix, sizeof(this->sufix));
-	}
-
-	MenuItemGenericReadWrite()
-	{
-	  this->setStep(1);
-	  this->dataFormat[0] = 0;
-	  this->prefix[0] = 0;
-	  this->sufix[0] = 0;
-	  this->error[0] = 0;
-	}
-
-	MenuItemGenericReadWrite(ProviderDataType *provider, GetterMethodType getter, SetterMethodType setter) : MenuItemGenericReadWrite()
-	{
-	  this->setProvider(provider, getter, setter);
-	}
-
-	void setDataFormat(const char *format)
-	{
-	  this->strncpy(this->dataFormat, format, sizeof(this->dataFormat));
-	}
-
-	void setDataFormat(VarTypeToStrFunction fnc)
-	{
-	  this->toStrFnc = fnc;
-	}
-
-	void setPrefix(const char *prefix)
-	{
-	  this->strncpy(this->prefix, prefix, sizeof(this->prefix));
-	}
-
-	void setError(const char *error)
-	{
-	  this->strncpy(this->error, error, sizeof(this->error));
-	}
-
-	void setSufix(const char * sufix)
-	{
-	  this->strncpy(this->sufix, sufix, sizeof(this->sufix));
-	}
-
-	void setRange(VarType min, VarType max)
-	{
-	  this->min = min;
-	  this->max = max;
-	}
-
-	void setStep(VarType step)
-	{
-	  this->step = step;
-	}
-
-	void setProvider(ProviderDataType *provider, GetterMethodType getter, SetterMethodType setter)
-	{
-	  this->provider = provider;
-	  this->getter = getter;
-	  this->setter = setter;
-	  this->currentData = (this->provider->*this->getter)(&this->dataPropet);
-	}
-
-	void draw(SegmentDisplayInterface *display)
-	{
-	  char buff[64];
-	  char format[64];
-
-	  enum class DisplayE
-	  {
-	      Stable,
-	      Blink,
-	      Edit,
-	      Error
-	  } displayE = DisplayE::Error;
-
-	  VarType value;
-
-	  if(this->isInEdit)
-	  {
-	    if(this->blinkTimer.checkCurrentAndRestart() == 1)
-	      displayE = DisplayE::Blink;
-	    else
-	      displayE = DisplayE::Edit;
-
-	    value = this->currentData;
-	  }
-	  else
-	  {
-	    value = (this->provider->*this->getter)(&this->dataPropet);
-
-	    if(this->dataPropet)
-	      displayE = DisplayE::Stable;
-	    else
-	      displayE = DisplayE::Error;
-	  }
-
-	  switch (displayE)
-	  {
-	    case DisplayE::Blink:
-	      display->display(this->prefix);
-	    break;
-	    case DisplayE::Error:
-	      display->display(this->error);
-	    break;
-
-	    case DisplayE::Edit:
-	      if(this->toStrFnc==nullptr)
-	      {
-		sprintf(format, "%s%s%s", this->prefix, this->dataFormat, this->sufix);
-		sprintf(buff, format, value);
-	      }
-	      else
-	      {
-		this->toStrFnc(format, value);
-		sprintf(buff, "%s%s%s", this->prefix, format, this->sufix);
-	      }
-
-	      display->display(buff);
-	    break;
-
-	    case DisplayE::Stable:
-	      if(this->toStrFnc==nullptr)
-	      {
-		sprintf(format, "%s%s%s", this->prefix, this->dataFormat, this->sufix);
-		sprintf(buff, format, value);
-	      }
-	      else
-	      {
-		this->toStrFnc(format, value);
-		sprintf(buff, "%s%s%s", this->prefix, format, this->sufix);
-	      }
-	      display->display(buff);
-	    break;
-	  }
-
-	}
-
-	void setFocus()
-	{
-	  if(!this->isInEdit)
-	  {
-	    this->isInEdit = true;
-	    this->currentData = (this->provider->*this->getter)(&this->dataPropet);
-	  }
-	}
-
-	void clearFocus()
-	{
-	  if(this->isInEdit)
-	  {
-	    this->isInEdit = false;
-	    //(this->provider->*this->setter)(this->currentData);
-	    this->blinkTimer.stop();
-	  }
-	}
-
-	bool focused()
-	{
-	  return this->isInEdit;
-	}
-
-	void actionUp()
-	{
-	  if(this->isInEdit)
-	  {
-	    if(this->currentData+this->step>this->max)
-	      this->currentData=this->min;
-	    else
-	      this->currentData+=this->step;
-	  }
-	}
-
-	void actionDown()
-	{
-	  if(this->isInEdit)
-	  {
-	    if(this->currentData - this->step < this->min)
-	      this->currentData = this->max;
-	    else
-	      this->currentData -= this->step;
-	  }
-	}
-
-	void actionEnter()
-	{
-	  if(!this->isInEdit)
-	  {
-	    this->isInEdit = true;
-	    this->blinkTimer.start(500,500);
-	    this->currentData = (this->provider->*this->getter)(&this->dataPropet);
-	  }
-	  else
-	  {
-	    this->isInEdit = false;
-	    (this->provider->*this->setter)(this->currentData);
-	    this->blinkTimer.stop();
-	  }
-	}
-    };
-
-  template<typename ProviderDataType, typename VarType>
-    class MenuItemGenericRead : public MenuItemInterface
-    {
-      typedef VarType ProviderDataType::*GetterMethodBoolType(bool *);
-      typedef VarType ProviderDataType::*GetterMethodVoidType();
-      private:
-  	ProviderDataType *provider;
-  	GetterMethodBoolType getterBool;
-  	GetterMethodVoidType getterVoid;
-
-
-  	char error[16];
-  	char format[16];
-        public:
-  	MenuItemGenericRead()
-        {
-  	  this->format[0] = 0;
-  	  this->error[0] = 0;
-  	}
-
-  	void setFormat(const char *format)
-  	{
-  	  strcpy(this->format, format);
-  	}
-
-  	void setError(const char *error)
-  	{
-  	  strcpy(this->error, error);
-  	}
-
-  	void setProviderFeedback(ProviderDataType *provider, GetterMethodBoolType getter)
-  	{
-  	  this->provider = provider;
-  	  this->getterBool = getter;
-  	  this->getterVoid = nullptr;
-  	}
-
-  	void setProvider(ProviderDataType *provider, GetterMethodVoidType getter)
-  	{
-  	  this->provider = provider;
-  	  this->getterVoid = getter;
-  	  this->getterBool = nullptr;
-  	}
-
-
-  	void draw(SegmentDisplayInterface *display)
-  	{
-  	  bool dataPropet = false;
-  	  char buff[32];
-
-  	  if(this->getterBool!=nullptr)
-  	  {
-	    sprintf(buff, this->format, (this->provider->*this->getterBool)(&dataPropet));
-	    if(dataPropet)
-	      display->display(buff);
-	    else
-	      display->display(this->error);
-  	  }
-  	  else
-	  {
-	    display->display(buff);
-  	  }
-  	}
-
-  	void setFocus(){ return; }
-  	void clearFocus(){}
-  	bool focused() { return false; }
-  	void actionUp() { return; }
-  	void actionDown() { return; }
-  	void actionEnter(){ return; }
-      };
-
-  template<typename ProviderDataType, typename VarType>
-    class MenuItemFormattedRead : public MenuItemInterface
-    {
-      typedef VarType (ProviderDataType::*GetterMethodBoolType)(bool *);
-      typedef VarType (ProviderDataType::*GetterMethodVoidType)();
-
-      private:
-  	ProviderDataType *provider;
-  	GetterMethodBoolType getterBool = nullptr;
-  	GetterMethodVoidType getterVoid = nullptr;
-
-	typedef void (*PrintfFunctionType)(char*, VarType);
-	PrintfFunctionType printfFunction = nullptr;
-
-	char prefix[16];
-	char sufix[16];
-
-	char error[16];
-
-        public:
-	MenuItemFormattedRead()
-        {
-	  this->prefix[0] = 0;
-	  this->sufix[0] = 0;
-	  this->error[0] = 0;
-        }
-
-	void setPrefix(const char *prefix)
-	{
-	  strcpy(this->prefix, prefix);
-	}
-
-	void setSufix(const char *sufix)
-	{
-	  strcpy(this->sufix, sufix);
-	}
-
-	void setError(const char *error)
-	{
-	  strcpy(this->error, error);
-	}
-
-  	void setSprintfFunction(PrintfFunctionType printfFunction)
-  	{
-  	  this->printfFunction = printfFunction;
-  	}
-
-  	void setProviderFeedback(ProviderDataType *provider, GetterMethodBoolType getter)
-  	{
-  	  this->provider = provider;
-  	  this->getterBool = getter;
-  	  this->getterVoid = nullptr;
-  	}
-
-  	void setProvider(ProviderDataType *provider, GetterMethodVoidType getter)
-  	{
-  	  this->provider = provider;
-  	  this->getterVoid = getter;
-  	  this->getterBool = nullptr;
-  	}
-
-  	void draw(SegmentDisplayInterface *display)
-  	{
-  	  char buff[32];
-  	  char format[32];
-
-  	  bool result = false;
-
-  	  if(this->getterBool!=nullptr)
-  	  {
-	    this->printfFunction(buff, (this->provider->*this->getterBool)(&result));
-
-	    sprintf(format, "%s%s%s", this->prefix, buff, this->sufix);
-
-	    if(result)
-	      display->display(format);
-	    else
-	      display->display(this->error);
-  	  }
-  	  else
-  	  {
-	    this->printfFunction(buff, (this->provider->*this->getterVoid)());
-	    sprintf(format, "%s%s%s", this->prefix, buff, this->sufix);
-	    display->display(format);
-	  }
-  	}
-
-
-
-  	void setFocus(){ return; }
-  	void clearFocus(){}
-  	bool focused() { return false; }
-  	void actionUp() { return; }
-  	void actionDown() { return; }
-  	void actionEnter(){ return; }
-    };
-
+  template<typename VarType>
+   class MenuItemGenericReadWriteFunctional : public MenuItemInterface
+   {
+     public:
+       typedef VarType VarTypeE;
+
+       using ValueGet = std::function<VarTypeE (bool *)>;
+       using ValueChanged = std::function<void (VarTypeE)>;
+       using ValueFormat = std::function<void (char *, VarTypeE)>;
+     private:
+        ValueGet valueGet;
+        ValueChanged valueChagned;
+        ValueFormat valueFormat;
+
+ 	VarType currentData;
+
+ 	VarType min;
+ 	VarType max;
+ 	VarType step;
+
+ 	BlinkTimer blinkTimer;
+
+ 	bool editable{true};
+ 	bool dataPropet{false};
+
+ 	bool isInEdit = false;
+
+ 	char error[16];
+ 	char prefix[8];
+ 	char sufix[8];
+
+ 	bool disablePrefixInEdit = true;
+ 	bool disableSufixInEdit = true;
+ 	bool autoPrefixSufixInEdit = false;
+ 	bool enableValueInNonEditMode = true;
+
+ 	void strncpy(char * dst, const char *src, unsigned size)
+ 	{
+ 	  if(src!=nullptr)
+ 	    std::strncpy(dst, src, size);
+ 	  else
+ 	    memset(dst, 0, size);
+ 	}
+
+
+       public:
+ 	MenuItemGenericReadWriteFunctional(const MenuItemGenericReadWriteFunctional &other)
+ 	{
+ 	  this->valueFormat = other.valueFormat;
+ 	  this->valueChagned = other.valueChagned;
+ 	  this->currentData = other.currentData;
+
+ 	  this->blinkTimer = other.blinkTimer;
+
+ 	  this->isInEdit = false;
+
+ 	  memcpy(this->prefix, other.prefix, sizeof(this->prefix));
+ 	  memcpy(this->sufix, other.sufix, sizeof(this->sufix));
+ 	  memcpy(this->error, other.error, sizeof(this->error));
+ 	}
+
+ 	MenuItemGenericReadWriteFunctional()
+ 	{
+ 	  this->setStep(1);
+ 	  this->prefix[0] = 0;
+ 	  this->sufix[0] = 0;
+ 	  this->error[0] = 0;
+
+ 	  this->setRange(std::numeric_limits<VarTypeE>::min(), std::numeric_limits<VarTypeE>::max());
+ 	}
+
+ 	MenuItemGenericReadWriteFunctional(ValueChanged valueChanged, ValueGet valueGet, ValueFormat valueFormat) : MenuItemGenericReadWriteFunctional()
+ 	{
+ 	  this->valueGet = valueGet;
+ 	  this->valueChagned = valueChanged;
+ 	  this->valueFormat = valueFormat;
+ 	}
+
+ 	template<typename T>
+ 	auto & setFormatValue(T fnc)
+ 	{
+ 	  this->valueFormat = fnc;
+ 	  return *this;
+ 	}
+
+ 	template<typename T>
+ 	auto & setValueChanged(T valueChanged)
+ 	{
+ 	  this->valueChagned = valueChanged;
+	  return *this;
+ 	}
+
+ 	template<typename T>
+ 	auto & setValueGet(T valueGet)
+ 	{
+ 	  this->valueGet = valueGet;
+	  return *this;
+ 	}
+
+ 	auto & setPrefix(const char *prefix)
+ 	{
+ 	  this->strncpy(this->prefix, prefix, sizeof(this->prefix));
+ 	  return *this;
+ 	}
+
+ 	auto & setError(const char *error)
+ 	{
+ 	  this->strncpy(this->error, error, sizeof(this->error));
+ 	  return *this;
+ 	}
+
+ 	auto & setSufix(const char * sufix)
+ 	{
+ 	  this->strncpy(this->sufix, sufix, sizeof(this->sufix));
+ 	  return *this;
+ 	}
+
+ 	auto & setRange(VarType min, VarType max)
+ 	{
+ 	  this->min = min;
+ 	  this->max = max;
+ 	  return *this;
+ 	}
+
+ 	auto & setStep(VarType step)
+ 	{
+ 	  this->step = step;
+ 	  return *this;
+ 	}
+
+ 	auto & setPrefixVisibleDuringEdit(bool state)
+ 	{
+ 	  this->disablePrefixInEdit = !state;
+ 	  return *this;
+ 	}
+
+ 	auto & setSufixVisibleDuringEdit(bool state)
+ 	{
+ 	  this->disableSufixInEdit = !state;
+ 	  return *this;
+ 	}
+
+ 	auto & setValueVisableDuringNonEditMode(bool state)
+ 	{
+ 	  this->enableValueInNonEditMode = state;
+ 	  return *this;
+ 	}
+
+ 	auto & setAutoSufixPrefixVisibility(bool state)
+ 	{
+ 	  this->autoPrefixSufixInEdit = state;
+ 	  return *this;
+ 	}
+
+ 	auto & setEditable(bool allowEdit)
+ 	{
+ 	  this->editable = allowEdit;
+ 	  return *this;
+ 	}
+
+ 	void draw(SegmentDisplayInterface *display)
+ 	{
+ 	  enum class DisplayE
+ 	  {
+ 	      Stable,
+ 	      Blink,
+ 	      Edit,
+ 	      Error
+ 	  } displayE = DisplayE::Error;
+
+
+ 	  char buff[64] = {0};
+ 	  char format[64] = {0};
+
+
+ 	  VarType value;
+
+ 	  if(this->isInEdit)
+ 	  {
+ 	    if(this->blinkTimer.checkCurrentAndRestart() == 1)
+ 	      displayE = DisplayE::Blink;
+ 	    else
+ 	      displayE = DisplayE::Edit;
+
+ 	    value = this->currentData;
+ 	  }
+ 	  else
+ 	  {
+ 	    this->dataPropet = true;
+ 	    value = this->valueGet(&this->dataPropet);
+
+ 	    if(this->dataPropet)
+ 	      displayE = DisplayE::Stable;
+ 	    else
+ 	      displayE = DisplayE::Error;
+ 	  }
+
+ 	  switch (displayE)
+ 	  {
+ 	    case DisplayE::Error:
+ 	    {
+ 	      display->display(this->error);
+ 	    }
+ 	    break;
+
+ 	    case DisplayE::Stable:
+ 	    {
+ 	      if(this->enableValueInNonEditMode)
+ 	      {
+ 		this->valueFormat(format, value);
+ 		sprintf(buff, "%s%s%s", this->prefix, format, this->sufix);
+ 	      }
+ 	      else
+ 	      {
+ 		sprintf(buff, "%s", this->prefix);
+ 	      }
+
+ 	      display->display(buff);
+ 	    }
+ 	    break;
+
+ 	    case DisplayE::Blink:
+ 	    case DisplayE::Edit:
+ 	    {
+ 	      char emptyString = '\0';
+ 	      const char *prefix = this->prefix;
+ 	      const char *sufix = this->sufix;
+
+ 	      if(this->autoPrefixSufixInEdit)
+ 	      {
+ 		auto lenPrefix = display->strlen(prefix);
+ 		auto lenSufix = display->strlen(sufix);
+ 		auto digitsCount = display->digitsCount();
+
+ 		if((lenPrefix+lenSufix) >= digitsCount )
+ 		{
+ 		  prefix = &emptyString;
+ 		  sufix = &emptyString;
+ 		}
+ 	      }
+ 	      else
+ 	      {
+ 		if(this->disablePrefixInEdit)
+ 		  prefix = &emptyString;
+
+ 		if(this->disableSufixInEdit)
+ 		  sufix = &emptyString;
+ 	      }
+
+ 	      this->valueFormat(format, value);
+ 	      auto len = display->strlen(format);
+
+ 	      if(displayE==DisplayE::Blink)
+ 	      {
+		for(unsigned x = 0; x<len; x++)
+		  format[x] = ' ';
+ 	      }
+
+ 	      sprintf(buff, "%s%s%s", prefix, format, sufix);
+
+ 	      display->display(buff);
+
+ 	    }
+ 	    break;
+ 	  }
+
+ 	}
+
+ 	void setFocus()
+ 	{
+ 	  if(!this->isInEdit)
+ 	  {
+ 	    if(this->editable)
+ 	    {
+ 	      this->isInEdit = true;
+ 	      this->blinkTimer.start(500,500);
+ 	      this->dataPropet = true;
+ 	      this->currentData = this->valueGet(&this->dataPropet);
+ 	    }
+ 	  }
+ 	}
+
+ 	void clearFocus()
+ 	{
+ 	  if(this->isInEdit)
+ 	  {
+ 	    this->isInEdit = false;
+ 	    //(this->provider->*this->setter)(this->currentData);
+ 	    this->blinkTimer.stop();
+ 	  }
+ 	}
+
+ 	bool focused()
+ 	{
+ 	  return this->isInEdit;
+ 	}
+
+ 	void actionUp()
+ 	{
+ 	  if(this->isInEdit)
+ 	  {
+ 	    if(this->currentData+this->step>this->max)
+ 	      this->currentData=this->min;
+ 	    else
+ 	      this->currentData+=this->step;
+ 	  }
+ 	}
+
+ 	void actionDown()
+ 	{
+ 	  if(this->isInEdit)
+ 	  {
+ 	    if(this->currentData - this->step < this->min)
+ 	      this->currentData = this->max;
+ 	    else
+ 	      this->currentData -= this->step;
+ 	  }
+ 	}
+
+ 	void actionEnter()
+ 	{
+ 	  if(!this->isInEdit)
+ 	  {
+ 	    if(this->editable)
+ 	    {
+ 	      this->isInEdit = true;
+ 	      this->blinkTimer.start(500,500);
+ 	      this->dataPropet = true;
+ 	      this->currentData = this->valueGet(&this->dataPropet);
+ 	    }
+ 	  }
+ 	  else
+ 	  {
+ 	    this->isInEdit = false;
+ 	    this->valueChagned(this->currentData);
+ 	    this->blinkTimer.stop();
+ 	  }
+ 	}
+     };
 
   class MenuItemTime: public MenuItemInterface
   {
@@ -609,73 +522,6 @@ namespace menu
 	this->blinkTimer.stop();
       }
   };
-
-   class MenuItemFormattedReadOnlyFunction: public MenuItemInterface
-  {
-    private:
-      typedef void (*PrintfFunctionType)(char*);
-      std::function<void (char *)> printfFunction;
-
-    public:
-      MenuItemFormattedReadOnlyFunction() = default;
-
-      template<typename Callable>
-      void setSprintfFunction(Callable printfFunction)
-      {
-	this->printfFunction = printfFunction;
-      }
-
-      virtual void draw(SegmentDisplayInterface *display)
-      {
-	char buff[32];
-	memset(buff, 0, sizeof(buff));
-	this->printfFunction(buff);
-	display->display(buff);
-      }
-
-      void setFocus(){ return; }
-      void clearFocus(){}
-      bool focused() { return false; }
-      void actionUp() { return; }
-      void actionDown() { return; }
-      void actionEnter(){ return; }
-
-  };
-
-//  template<typename VarType>
-//  class MenuItemFunctionReadWrite : MenuItemInterface
-//  {
-//    private:
-//    MenuItemFormattedRead<MenuItemFunctionReadWrite, VarType> menuItem;
-//
-//    public:
-//    MenuItemFunctionReadWrite()
-//    {
-//
-//    }
-//
-//    VarType get(void)
-//    {
-//
-//    }
-//
-//    VarType get(bool *result)
-//    {
-//
-//    }
-//
-//
-//    virtual void draw(SegmentDisplayInterface *display) { this->menuItem.draw(display); }
-//
-//    virtual void actionUp()  { this->menuItem.actionUp(); }
-//    virtual void actionDown() { this->menuItem.actionDown(); }
-//    virtual void actionEnter() { this->menuItem.actionEnter(); }
-//
-//    virtual bool focused() { return this->menuItem.focused(); }
-//
-//    virtual void setFocus() { this->menuItem.setFocus(); }
-//    virtual void clearFocus() { this->menuItem.clearFocus(); }
-//  };
 }
 
 

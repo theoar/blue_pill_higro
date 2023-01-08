@@ -56,34 +56,34 @@ namespace segment_display
 	switch(c)
 	{
 	  case 'a': return getBits(Segments::A, Segments::B, Segments::C, Segments::D, Segments::E, Segments::G);
-	  case 'A': return getBits(Segments::A, Segments::B, Segments::C, Segments::E, Segments::F, Segments::G);
+	  case 'b': return getBits(Segments::C, Segments::D, Segments::E, Segments::G, Segments::F);
 	  case 'c': return getBits(Segments::D, Segments::E, Segments::G);
-	  case 'e': return getBits(Segments::A, Segments::B, Segments::D, Segments::E, Segments::F, Segments::G);
-	  case 'C': return getBits(Segments::A, Segments::D, Segments::E, Segments::F);
-	  case 'E': return getBits(Segments::A, Segments::D, Segments::E, Segments::F, Segments::G);
-	  case 'P': return getBits(Segments::A, Segments::B, Segments::E, Segments::F, Segments::G);
-	  case 'F': return getBits(Segments::A, Segments::E, Segments::F, Segments::G);
 	  case 'd': return getBits(Segments::B, Segments::C, Segments::D, Segments::E, Segments::G);
+	  case 'e': return getBits(Segments::A, Segments::B, Segments::D, Segments::E, Segments::F, Segments::G);
 
+	  case 'g': return digit2SegmentMask(9);
 	  case 'h': return getBits(Segments::C, Segments::E, Segments::F, Segments::G);
-	  case 'H': return getBits(Segments::B, Segments::C, Segments::E, Segments::F, Segments::G);
-
-	  case 'r': return getBits(Segments::E, Segments::G);
-
-	  case 'u': return getBits(Segments::C, Segments::D, Segments::E);
-	  case 'U': return getBits(Segments::B, Segments::C, Segments::D, Segments::E, Segments::F);
 
 	  case 'i': return getBits(Segments::E);
-	  case 'I': return getBits(Segments::E, Segments::F);
-
 	  case 'n': return getBits(Segments::C, Segments::E, Segments::G);
 	  case 'o': return getBits(Segments::C, Segments::D, Segments::E, Segments::G);
-
-	  case 'O': return getBits(Segments::A, Segments::B, Segments::C, Segments::D, Segments::E, Segments::F);
-
+	  case 'r': return getBits(Segments::E, Segments::G);
 	  case 't': return getBits(Segments::D, Segments::E, Segments::F, Segments::G);
+	  case 'u': return getBits(Segments::C, Segments::D, Segments::E);
 
+	  case 'A': return getBits(Segments::A, Segments::B, Segments::C, Segments::E, Segments::F, Segments::G);
+	  case 'C': return getBits(Segments::A, Segments::D, Segments::E, Segments::F);
+	  case 'E': return getBits(Segments::A, Segments::D, Segments::E, Segments::F, Segments::G);
+	  case 'F': return getBits(Segments::A, Segments::E, Segments::F, Segments::G);
+	  case 'H': return getBits(Segments::B, Segments::C, Segments::E, Segments::F, Segments::G);
+	  case 'I': return getBits(Segments::E, Segments::F);
 	  case 'L': return getBits(Segments::D, Segments::E, Segments::F);
+	  case 'O': return getBits(Segments::A, Segments::B, Segments::C, Segments::D, Segments::E, Segments::F);
+	  case 'P': return getBits(Segments::A, Segments::B, Segments::E, Segments::F, Segments::G);
+	  case 'S': return digit2SegmentMask(5);
+	  case 'U': return getBits(Segments::B, Segments::C, Segments::D, Segments::E, Segments::F);
+
+	  case '-': return getBits(Segments::G);
 
 	  case '1': return digit2SegmentMask(1);
 	  case '2': return digit2SegmentMask(2);

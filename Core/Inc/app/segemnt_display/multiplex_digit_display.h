@@ -245,6 +245,25 @@ namespace segment_display
   	  this->curentSize = count;
   	}
 
+  	unsigned digitsCount() const override
+  	{
+  	  return count;
+  	}
+
+  	unsigned strlen(const char *str) const override
+  	{
+  	  unsigned len{0};
+  	  while(*str!='\0')
+  	  {
+  	    if(*str!='.')
+  	      len++;
+
+  	    str++;
+  	  }
+
+  	  return len;
+  	}
+
   	virtual void handler(void)
   	{
   	  if(this->scrollTimer.checkAndRestart())

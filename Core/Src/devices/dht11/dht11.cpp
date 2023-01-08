@@ -142,6 +142,7 @@ namespace devices
     LL_GPIO_SetPinSpeed(this->hwPowerGpio, this->hwPowerPin, LL_GPIO_SPEED_FREQ_HIGH);
     LL_GPIO_SetPinMode(this->hwPowerGpio, this->hwPowerPin, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(this->hwPowerGpio, this->hwPowerPin, LL_GPIO_OUTPUT_PUSHPULL);
+    this->powerUp();
   }
 
   void Dht11::powerUp()
@@ -236,9 +237,13 @@ namespace devices
     this->trError = true;
     this->resultReady = false;
 
-    this->noResponseCnt++;
+    if(this->noResponseCnt<UINT32_MAX)
+      this->noResponseCnt++;
 
-    this->machineSt = MachineSt::ErrorStopTr;
+    if(this->noResponseCnt>=this->noResponseLimit)
+      this->machineSt = MachineSt::ErrorStopTr;
+    else
+      this->machineSt = MachineSt::StopTr;
   }
 
   void Dht11::init(GpioTypes::GpioNr gpio, uint32_t pin, TimerDefs::TimerNr timerNr, uint32_t timChannel, GpioTypes::GpioNr powerGpio, uint32_t powerPin)
@@ -255,12 +260,10 @@ namespace devices
     this->hwPowerPin = powerPin;
 
     this->initGpio();
-    this->initTimer();
-
-    TimerEvents::getGeneralPurposeTimerEvents(this->timerNr)->writeCaptureEvent(this);
-
     this->initPowerGpio();
-    this->powerUp();
+
+    this->initTimer();
+    TimerEvents::getGeneralPurposeTimerEvents(this->timerNr)->writeCaptureEvent(this);
 
     this->timer.start(this->powerWatiTms);
     this->machineSt = MachineSt::Wait;

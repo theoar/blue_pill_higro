@@ -19,6 +19,9 @@ namespace segment_display
       virtual void display(uint32_t number) = 0;
       virtual void display(const char *str) = 0;
       virtual void clear() = 0;
+      virtual unsigned digitsCount() const = 0;
+      virtual unsigned strlen(const char *str) const = 0;
+
   };
 }
 

@@ -67,20 +67,24 @@ namespace menu
 	  this->switchTimer.start(this->SwitchTime);
 	}
 
-	void addItemAt(MenuItemInterface *item, uint32_t pos, bool inScrollMenu)
+	SimpleMenu(SegmentDisplayInterface *display, ButtonKeyboardInterface *keyboard) : SimpleMenu()
 	{
-	  if(index<size)
-	  {
-	    this->items[pos] = item;
-	    this->inScrollMenu[pos] = inScrollMenu;
-	    this->atLeasOneInScroll |= inScrollMenu;
-	    this->itemsCount++;
-	  }
+	  this->setDisplay(display);
+	  this->setKeyboard(keyboard);
 	}
 
-	void addItem(MenuItemInterface *item, bool inScrollMenu)
+	bool addItem(MenuItemInterface *item, bool inScrollMenu = false)
 	{
-	  this->addItemAt(item, this->getItemsCount(), inScrollMenu);
+	  if(this->getItemsCount()<size)
+	  {
+	    this->items[this->getItemsCount()] = item;
+	    this->inScrollMenu[this->getItemsCount()] = inScrollMenu;
+	    this->atLeasOneInScroll |= inScrollMenu;
+	    this->itemsCount++;
+
+	    return true;
+	  }
+	  return false;
 	}
 
 	void setDisplay(SegmentDisplayInterface *display)

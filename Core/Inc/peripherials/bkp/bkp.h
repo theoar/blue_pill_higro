@@ -15,18 +15,13 @@ namespace bkp
 {
   class BackupDomain
   {
-    private:
-      volatile static uint32_t * dataPointer(uint16_t index);
     public:
       static void init();
-      static uint16_t readRegister(uint16_t index);
-      static uint16_t readRegister(uint16_t index, bool *result);
+      static uint32_t readRegister(uint16_t index, bool *result = nullptr);
+      static void writeRegister(uint16_t index, uint32_t data, bool *result = nullptr) ;
 
-      static void writeRegister(uint16_t index, uint16_t data);
-      static void writeRegister(uint16_t index, uint16_t data, bool *result);
-
-      static void readRegisters(uint16_t *destination, uint16_t index, uint16_t count);
-      static void writeRegisters(uint16_t *source, uint16_t index, uint16_t count);
+      static void readRegisters(uint32_t *destination, uint16_t index, uint16_t count);
+      static void writeRegisters(uint32_t *source, uint16_t index, uint16_t count);
 
   };
 }

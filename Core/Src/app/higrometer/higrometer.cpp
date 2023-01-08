@@ -27,7 +27,6 @@ namespace higrometer
       break;
       case AskStep::FirstInit:
       {
-	this->connected = false;
 	if(this->dht->isIdle())
 	{
 	  this->dht->read();
@@ -52,9 +51,7 @@ namespace higrometer
 	else
 	{
 	  if(this->dht->isError())
-	  {
-	    this->step = AskStep::FirstInit;
-	  }
+	    this->goFirstInit();
 	}
       }
       break;
@@ -65,13 +62,18 @@ namespace higrometer
     }
   }
 
+  void Higrometer::goFirstInit()
+  {
+    this->connected = false;
+    this->step = AskStep::FirstInit;
+  }
+
   void Higrometer::handlerAdvanced()
   {
     switch (this->step)
     {
       case AskStep::FirstInit:
       {
-	this->connected = false;
 	if(this->dht->isIdle())
 	{
 	  this->dht->read();
@@ -103,9 +105,7 @@ namespace higrometer
 	else
 	{
 	  if(this->dht->isError())
-	  {
-	    this->step = AskStep::FirstInit;
-	  }
+	    this->goFirstInit();
 	}
       }
       break;
@@ -138,9 +138,7 @@ namespace higrometer
 	  else
 	  {
 	    if(this->dht->isError())
-	    {
-	      this->step = AskStep::FirstInit;
-	    }
+	      this->goFirstInit();
 	  }
 	}
 	break;
@@ -151,27 +149,16 @@ namespace higrometer
   void Higrometer::init(Dht11 *dht, uint32_t askTime)
   {
     this->dht = dht;
-    this->step = AskStep::FirstInit;
-    this->connected = false;
 
     this->humidity = 0;
     this->temperature = 0;
 
-    if(askTime < 1000)
-      this->askTime = 1000;
-    else
-      this->askTime = askTime;
-
-    if(askTime < timeThreshold)
-      this->measureType = MeasureType::Simple;
-    else
-      this->measureType = MeasureType::Advanced;
+    this->setAskTime(askTime);
+    this->goFirstInit();
   }
 
   void Higrometer::setAskTime(uint32_t askTime)
   {
-    this->step = AskStep::FirstInit;
-
     if(askTime < 1000)
       this->askTime = 1000;
     else

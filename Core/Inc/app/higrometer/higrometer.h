@@ -50,6 +50,8 @@ namespace higrometer
       void handlerSimple();
       void handlerAdvanced();
 
+      void goFirstInit();
+
     public:
       void init(Dht11 *dht, uint32_t askTime);
       void setAskTime(uint32_t askTime);
